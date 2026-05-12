@@ -3,6 +3,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { GaRoutePath } from "@/components/ga-route-path";
+import { Toaster } from "@/components/ui/sonner";
 import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -143,6 +144,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <Toaster />
         {gaMeasurementId ? (
           <>
             <GoogleAnalytics gaId={gaMeasurementId} />

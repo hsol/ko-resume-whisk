@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import {
   ArrowLeftRight,
   Copy,
@@ -22,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/resume-whisk-clipboard";
+import { objectParticleEulReul } from "@/lib/hangul-particle";
 import {
   WHISK_INPUT_MAX_CHARS,
   clampWhiskInput,
@@ -50,6 +52,9 @@ const SAMPLE_OUTPUT =
   "지속 가능한 성장을 위해 Strategic Pause를 선택, 업계 트렌드를 분석함. 신규 기술 스택을 자기 주도적으로 학습하며 커리어 재정비의 시기를 가짐.";
 
 const TAGLINE_REVEAL_DELAY_MS = 600;
+
+/** 모바일 번역·typed·하단 광고 구간 Sonner 토스트 id */
+const WHISK_TRANSLATE_AD_TOAST_ID = "whisk-translate-ad";
 
 function ResumeWhiskAppInner() {
   const searchParams = useSearchParams();
@@ -526,6 +531,35 @@ function ResumeWhiskAppInner() {
   const shareControlsDisabled =
     !snapshotHydrated || !hasOutputToShare || isWhisking || isSharing;
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const dismissToast = () => {
+      toast.dismiss(WHISK_TRANSLATE_AD_TOAST_ID);
+    };
+
+    const narrow = window.matchMedia("(max-width: 639px)").matches;
+    if (!narrow) {
+      dismissToast();
+      return dismissToast;
+    }
+
+    const adPhase = isWhisking || whiskTypedOutput !== null;
+    if (adPhase) {
+      const fromLabel = LANGUAGE_LABEL_MAP[fromKey];
+      const toLabel = LANGUAGE_LABEL_MAP[toKey];
+      const eulReul = objectParticleEulReul(fromLabel);
+      toast.loading(`${fromLabel}${eulReul} ${toLabel}로 변환하는 중 ...`, {
+        id: WHISK_TRANSLATE_AD_TOAST_ID,
+        duration: Number.POSITIVE_INFINITY,
+      });
+    } else {
+      dismissToast();
+    }
+
+    return dismissToast;
+  }, [isWhisking, whiskTypedOutput, fromKey, toKey]);
+
   return (
     <div className="relative flex h-dvh min-h-0 w-full max-h-dvh flex-col overflow-hidden bg-[#f9f9f9] pt-[max(1rem,env(safe-area-inset-top))]">
       {copyHint ? <WhiskCopyToast message={copyHint} /> : null}
@@ -533,15 +567,15 @@ function ResumeWhiskAppInner() {
       <WhiskLayoutColumn className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
         <div className="flex w-full flex-1 flex-col justify-center gap-4 sm:gap-8">
           <Card className="flex w-full shrink-0 flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-white py-0 shadow-sm ring-1 ring-black/[0.06] md:rounded-3xl md:shadow-md">
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-3 md:px-7">
-            <div className="flex min-h-10 min-w-0 flex-1 items-center pl-0.5 sm:min-h-9 sm:max-w-[160px] sm:pl-1">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2 sm:gap-3 sm:px-6 sm:py-2.5 md:px-7">
+            <div className="flex min-h-8 min-w-0 flex-1 items-center pl-0.5 sm:max-w-[160px] sm:pl-1">
               <span className="text-sm font-medium text-[#1a1f2c] sm:text-base">
                 {LANGUAGE_LABEL_MAP[fromKey]}
               </span>
             </div>
 
             <WhiskToolbarButton
-              className="shrink-0"
+              className="min-h-9 min-w-9 shrink-0 sm:min-h-8 sm:min-w-8"
               title="입력과 결과 바꾸기"
               disabled={isWhisking || isSharing}
               onClick={swapPanels}
@@ -552,7 +586,7 @@ function ResumeWhiskAppInner() {
               />
             </WhiskToolbarButton>
 
-            <div className="flex min-h-10 min-w-0 flex-1 items-center justify-end pr-0.5 sm:min-h-9 sm:max-w-[160px] sm:pr-1">
+            <div className="flex min-h-8 min-w-0 flex-1 items-center justify-end pr-0.5 sm:max-w-[160px] sm:pr-1">
               <span className="text-sm font-medium text-[#1a1f2c] sm:text-base">
                 {LANGUAGE_LABEL_MAP[toKey]}
               </span>
@@ -561,6 +595,7 @@ function ResumeWhiskAppInner() {
 
             <div className="flex shrink-0 flex-col px-3 pt-2 pb-1.5 sm:px-4 sm:pt-3 sm:pb-2 md:px-5">
             <WhiskTranslatorTextarea
+              shortOnMobile
               value={inputText}
               maxLength={WHISK_INPUT_MAX_CHARS}
               onChange={(e) => setInputText(e.target.value)}
@@ -629,7 +664,7 @@ function ResumeWhiskAppInner() {
                 placeholder={SAMPLE_OUTPUT}
               />
             )}
-            <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
+            <div className="mt-1 hidden shrink-0 items-center gap-0.5 sm:mt-1.5 sm:flex">
               <WhiskToolbarButton
                 title="복사"
                 disabled={isWhisking || isSharing}
