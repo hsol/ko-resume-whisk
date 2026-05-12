@@ -62,15 +62,6 @@ function ResumeWhiskAppInner() {
   const [inputText, setInputText] = React.useState(SAMPLE_INPUT);
   const [outputText, setOutputText] = React.useState(SAMPLE_OUTPUT);
   const [copyHint, setCopyHint] = React.useState<string | null>(null);
-  const copyHydrated = React.useRef(false);
-  React.useEffect(() => {
-    if (copyHydrated.current) return;
-    const raw = searchParams.get("copy")?.trim();
-    if (raw) {
-      setOutputText(raw);
-      copyHydrated.current = true;
-    }
-  }, [searchParams]);
   const copyHintTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
@@ -103,18 +94,14 @@ function ResumeWhiskAppInner() {
   );
 
   const handleShare = React.useCallback(async () => {
-    if (typeof window === "undefined" || !window.location?.href) {
+    const shareUrl =
+      typeof window !== "undefined" && window.location?.href
+        ? window.location.href
+        : "";
+    if (!shareUrl) {
       showCopyHint("공유할 링크를 불러올 수 없어요");
       return;
     }
-    const u = new URL(window.location.href);
-    const out = outputText.trim();
-    if (out) {
-      u.searchParams.set("copy", out.slice(0, 560));
-    } else {
-      u.searchParams.delete("copy");
-    }
-    const shareUrl = u.toString();
 
     const title = "자소서 거품기";
     const shareData: ShareData = {
@@ -139,7 +126,7 @@ function ResumeWhiskAppInner() {
         ? "Web Share를 쓸 수 없어 링크를 클립보드에 복사했어요"
         : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
     );
-  }, [outputText, showCopyHint]);
+  }, [showCopyHint]);
 
   const swapPanels = () => {
     setInputText(outputText);
