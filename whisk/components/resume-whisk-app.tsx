@@ -10,8 +10,10 @@ import {
   Share2,
 } from "lucide-react";
 
+import { AdsenseDisplayUnit } from "@/components/ads/adsense-display-unit";
 import { WhiskCopyToast } from "@/components/resume-whisk/whisk-copy-toast";
 import { WhiskLayoutColumn } from "@/components/resume-whisk/whisk-layout-column";
+import { WhiskShareAdDialog } from "@/components/resume-whisk/whisk-share-ad-dialog";
 import { WhiskShareBottomSheet } from "@/components/resume-whisk/whisk-share-bottom-sheet";
 import { WhiskToolbarButton } from "@/components/resume-whisk/whisk-toolbar-button";
 import { WhiskTranslatorTextarea } from "@/components/resume-whisk/whisk-translator-textarea";
@@ -26,6 +28,7 @@ import {
   clampWhiskInput,
 } from "@/lib/resume-whisk-input-limits";
 import { isUuidV4 } from "@/lib/snapshot-id";
+import { ADSENSE_SLOT_TRANSLATE_CTA } from "@/lib/adsense-config";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_PANEL_FROM,
@@ -63,6 +66,8 @@ function ResumeWhiskAppInner() {
   );
   const hydratedSnapshotRef = React.useRef<string | null>(null);
   const [isSharing, setIsSharing] = React.useState(false);
+  const [shareAdMountKey, setShareAdMountKey] = React.useState(0);
+  const [translateAdMountKey, setTranslateAdMountKey] = React.useState(0);
   const [whiskTypedOutput, setWhiskTypedOutput] = React.useState<{
     text: string;
     seq: number;
@@ -309,6 +314,7 @@ function ResumeWhiskAppInner() {
     pendingWhiskCopyRef.current = null;
     setTaglinesVisible(true);
 
+    setTranslateAdMountKey((k) => k + 1);
     setIsWhisking(true);
     try {
       const res = await fetch("/api/whisk", {
@@ -371,6 +377,7 @@ function ResumeWhiskAppInner() {
   const handleShare = React.useCallback(async () => {
     if (typeof window === "undefined") return;
 
+    setShareAdMountKey((k) => k + 1);
     setIsSharing(true);
     try {
       const res = await fetch("/api/snapshots", {
@@ -476,6 +483,8 @@ function ResumeWhiskAppInner() {
     hydratedSnapshotRef.current = null;
     router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
   };
+
+  const showWhiskTranslateAd = isWhisking || whiskTypedOutput !== null;
 
   return (
     <div className="relative flex h-dvh min-h-0 w-full max-h-dvh flex-col overflow-hidden bg-[#f9f9f9] pt-[max(1rem,env(safe-area-inset-top))]">
@@ -610,21 +619,38 @@ function ResumeWhiskAppInner() {
 
           <div
             className={cn(
-              "flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center transition-opacity ease-in-out sm:pt-3",
-              taglinesVisible
-                ? "opacity-100 duration-[1200ms]"
-                : "pointer-events-none opacity-0 duration-200",
+              "flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center sm:pt-3",
+              !showWhiskTranslateAd &&
+                "transition-opacity ease-in-out",
+              !showWhiskTranslateAd &&
+                (taglinesVisible
+                  ? "opacity-100 duration-[1200ms]"
+                  : "pointer-events-none opacity-0 duration-200"),
             )}
           >
-            <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
-              {taglinePrimary}
-            </h1>
-            <p className="mt-2 max-w-[95%] text-balance text-[clamp(0.9rem,1.35svh+0.65rem,1.75rem)] leading-snug text-muted-foreground sm:mt-2.5 md:mt-3 md:text-[clamp(1rem,1.2svh+0.7rem,1.875rem)] lg:text-[clamp(1.05rem,1.1svh+0.75rem,1.875rem)]">
-              {taglineSecondary}
-            </p>
+            {showWhiskTranslateAd ? (
+              <div className="w-full max-w-2xl pb-2">
+                <AdsenseDisplayUnit
+                  key={translateAdMountKey}
+                  adSlot={ADSENSE_SLOT_TRANSLATE_CTA}
+                  minSkeletonMs={700}
+                />
+              </div>
+            ) : (
+              <>
+                <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
+                  {taglinePrimary}
+                </h1>
+                <p className="mt-2 max-w-[95%] text-balance text-[clamp(0.9rem,1.35svh+0.65rem,1.75rem)] leading-snug text-muted-foreground sm:mt-2.5 md:mt-3 md:text-[clamp(1rem,1.2svh+0.7rem,1.875rem)] lg:text-[clamp(1.05rem,1.1svh+0.75rem,1.875rem)]">
+                  {taglineSecondary}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </WhiskLayoutColumn>
+
+      <WhiskShareAdDialog open={isSharing} mountKey={shareAdMountKey} />
 
       <WhiskShareBottomSheet
         onShare={() => void handleShare()}
