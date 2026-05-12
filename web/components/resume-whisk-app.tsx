@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeftRight,
   Copy,
@@ -16,6 +18,12 @@ import { WhiskTranslatorTextarea } from "@/components/resume-whisk/whisk-transla
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { copyToClipboard } from "@/lib/resume-whisk-clipboard";
+import {
+  DEFAULT_PANEL_FROM,
+  DEFAULT_PANEL_TO,
+  LANGUAGE_LABEL_MAP,
+  resolvePanelLanguageKey,
+} from "@/lib/resume-whisk-languages";
 
 const SAMPLE_INPUT =
   "퇴사하고 3개월 동안 집에서 넷플릭스 보면서 쉬었습니다. 가끔 유튜브로 코딩 강의 틀어놨습니다.";
@@ -23,7 +31,30 @@ const SAMPLE_INPUT =
 const SAMPLE_OUTPUT =
   "지속 가능한 성장을 위해 Strategic Pause를 선택, 업계 트렌드를 분석함. 신규 기술 스택을 자기 주도적으로 학습하며 커리어 재정비의 시기를 가짐.";
 
-export function ResumeWhiskApp() {
+function ResumeWhiskAppInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const fromKey = resolvePanelLanguageKey(
+    searchParams.get("from"),
+    DEFAULT_PANEL_FROM,
+  );
+  const toKey = resolvePanelLanguageKey(
+    searchParams.get("to"),
+    DEFAULT_PANEL_TO,
+  );
+
+  React.useEffect(() => {
+    const rf = searchParams.get("from");
+    const rt = searchParams.get("to");
+    if (rf === fromKey && rt === toKey) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("from", fromKey);
+    next.set("to", toKey);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }, [fromKey, toKey, pathname, router, searchParams]);
+
   const [inputText, setInputText] = React.useState(SAMPLE_INPUT);
   const [outputText, setOutputText] = React.useState(SAMPLE_OUTPUT);
   const [copyHint, setCopyHint] = React.useState<string | null>(null);
@@ -98,6 +129,10 @@ export function ResumeWhiskApp() {
   const swapPanels = () => {
     setInputText(outputText);
     setOutputText(inputText);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("from", toKey);
+    next.set("to", fromKey);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   };
 
   return (
@@ -109,7 +144,7 @@ export function ResumeWhiskApp() {
           <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border/60 px-3 py-2.5 sm:gap-2 sm:px-4 sm:py-3 md:px-5">
             <div className="flex min-h-10 min-w-0 flex-1 items-center sm:min-h-9 sm:max-w-[160px]">
               <span className="text-sm font-medium text-[#1a1f2c] sm:text-base">
-                한국어
+                {LANGUAGE_LABEL_MAP[fromKey]}
               </span>
             </div>
 
@@ -126,7 +161,7 @@ export function ResumeWhiskApp() {
 
             <div className="flex min-h-10 min-w-0 flex-1 items-center justify-end sm:min-h-9 sm:max-w-[160px]">
               <span className="text-sm font-medium text-[#1a1f2c] sm:text-base">
-                자소서
+                {LANGUAGE_LABEL_MAP[toKey]}
               </span>
             </div>
           </div>
@@ -186,5 +221,17 @@ export function ResumeWhiskApp() {
 
       <WhiskShareBottomSheet onShare={() => void handleShare()} />
     </div>
+  );
+}
+
+export function ResumeWhiskApp() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-dvh w-full bg-[#f9f9f9] pt-[max(1rem,env(safe-area-inset-top))]" />
+      }
+    >
+      <ResumeWhiskAppInner />
+    </Suspense>
   );
 }
