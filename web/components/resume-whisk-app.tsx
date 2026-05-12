@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeftRight,
   Copy,
+  Loader2,
   Share2,
   Volume2,
 } from "lucide-react";
@@ -17,11 +18,14 @@ import { WhiskToolbarButton } from "@/components/resume-whisk/whisk-toolbar-butt
 import { WhiskTranslatorTextarea } from "@/components/resume-whisk/whisk-translator-textarea";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/resume-whisk-clipboard";
 import {
   DEFAULT_PANEL_FROM,
   DEFAULT_PANEL_TO,
+  LANGUAGE_KO,
   LANGUAGE_LABEL_MAP,
+  LANGUAGE_RESUME,
   resolvePanelLanguageKey,
 } from "@/lib/resume-whisk-languages";
 import {
@@ -61,12 +65,19 @@ function ResumeWhiskAppInner() {
 
   const [inputText, setInputText] = React.useState(SAMPLE_INPUT);
   const [outputText, setOutputText] = React.useState(SAMPLE_OUTPUT);
+  const [taglinePrimary, setTaglinePrimary] = React.useState(WHISK_TAGLINE_PRIMARY);
+  const [taglineSecondary, setTaglineSecondary] = React.useState(
+    WHISK_TAGLINE_SECONDARY,
+  );
+  const [isWhisking, setIsWhisking] = React.useState(false);
+  const whiskAbortRef = React.useRef<AbortController | null>(null);
   const [copyHint, setCopyHint] = React.useState<string | null>(null);
   const copyHintTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     return () => {
       if (copyHintTimer.current) clearTimeout(copyHintTimer.current);
+      whiskAbortRef.current?.abort();
     };
   }, []);
 
@@ -92,6 +103,74 @@ function ResumeWhiskAppInner() {
     },
     [showCopyHint],
   );
+
+  const runWhisk = React.useCallback(async () => {
+    const trimmed = inputText.trim();
+    if (!trimmed) {
+      showCopyHint("번역할 내용을 입력해 주세요");
+      return;
+    }
+
+    let direction: "ko_resume" | "resume_ko" | null = null;
+    if (fromKey === LANGUAGE_KO && toKey === LANGUAGE_RESUME) {
+      direction = "ko_resume";
+    } else if (fromKey === LANGUAGE_RESUME && toKey === LANGUAGE_KO) {
+      direction = "resume_ko";
+    } else {
+      showCopyHint("지원하지 않는 방향이에요");
+      return;
+    }
+
+    whiskAbortRef.current?.abort();
+    const controller = new AbortController();
+    whiskAbortRef.current = controller;
+
+    setIsWhisking(true);
+    try {
+      const res = await fetch("/api/whisk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ direction, input: trimmed }),
+        signal: controller.signal,
+      });
+      const data: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg =
+          data &&
+          typeof data === "object" &&
+          "error" in data &&
+          typeof (data as { error: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : "변환에 실패했어요";
+        showCopyHint(msg);
+        return;
+      }
+      if (!data || typeof data !== "object") {
+        showCopyHint("응답을 이해할 수 없어요");
+        return;
+      }
+      const d = data as {
+        text?: unknown;
+        copy?: { title?: unknown; desc?: unknown };
+      };
+      if (typeof d.text !== "string") {
+        showCopyHint("응답을 이해할 수 없어요");
+        return;
+      }
+      setOutputText(d.text);
+      if (d.copy && typeof d.copy.title === "string") {
+        setTaglinePrimary(d.copy.title);
+      }
+      if (d.copy && typeof d.copy.desc === "string") {
+        setTaglineSecondary(d.copy.desc);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      showCopyHint("변환에 실패했어요");
+    } finally {
+      setIsWhisking(false);
+    }
+  }, [fromKey, toKey, inputText, showCopyHint]);
 
   const handleShare = React.useCallback(async () => {
     const shareUrl =
@@ -129,6 +208,10 @@ function ResumeWhiskAppInner() {
   }, [showCopyHint]);
 
   const swapPanels = () => {
+    whiskAbortRef.current?.abort();
+    setIsWhisking(false);
+    setTaglinePrimary(WHISK_TAGLINE_PRIMARY);
+    setTaglineSecondary(WHISK_TAGLINE_SECONDARY);
     setInputText(outputText);
     setOutputText(inputText);
     const next = new URLSearchParams(searchParams.toString());
@@ -175,22 +258,48 @@ function ResumeWhiskAppInner() {
               onChange={(e) => setInputText(e.target.value)}
               placeholder="평범한 문장을 입력하세요"
             />
-            <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
-              <WhiskToolbarButton title="읽기">
-                <Volume2 className="size-5" strokeWidth={1.5} />
-              </WhiskToolbarButton>
-              <WhiskToolbarButton
-                title="복사"
-                onClick={() => void handleCopy(inputText)}
+            <div className="mt-1 flex w-full min-w-0 shrink-0 items-center justify-between gap-2 sm:mt-1.5">
+              <div className="flex shrink-0 items-center gap-0.5">
+                <WhiskToolbarButton title="읽기">
+                  <Volume2 className="size-5" strokeWidth={1.5} />
+                </WhiskToolbarButton>
+                <WhiskToolbarButton
+                  title="복사"
+                  onClick={() => void handleCopy(inputText)}
+                >
+                  <Copy className="size-5" strokeWidth={1.5} />
+                </WhiskToolbarButton>
+              </div>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-3 font-semibold shadow-sm sm:h-8"
+                disabled={isWhisking || !inputText.trim()}
+                aria-busy={isWhisking}
+                onClick={() => void runWhisk()}
               >
-                <Copy className="size-5" strokeWidth={1.5} />
-              </WhiskToolbarButton>
+                {isWhisking ? (
+                  <>
+                    <Loader2
+                      className="size-3.5 animate-spin"
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                    <span>번역 중…</span>
+                  </>
+                ) : (
+                  "번역하기"
+                )}
+              </Button>
             </div>
             </div>
 
             <Separator className="shrink-0 bg-border/70" />
 
-            <div className="flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3">
+            <div
+              className={`flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3 ${isWhisking ? "pointer-events-none opacity-50" : ""}`}
+            >
             <WhiskTranslatorTextarea readOnly value={outputText} />
             <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
               <WhiskToolbarButton title="읽기">
@@ -214,10 +323,10 @@ function ResumeWhiskAppInner() {
 
           <div className="flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center sm:pt-3">
             <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
-              {WHISK_TAGLINE_PRIMARY}
+              {taglinePrimary}
             </h1>
             <p className="mt-2 max-w-[95%] text-balance text-[clamp(0.9rem,1.35svh+0.65rem,1.75rem)] leading-snug text-muted-foreground sm:mt-2.5 md:mt-3 md:text-[clamp(1rem,1.2svh+0.7rem,1.875rem)] lg:text-[clamp(1.05rem,1.1svh+0.75rem,1.875rem)]">
-              {WHISK_TAGLINE_SECONDARY}
+              {taglineSecondary}
             </p>
           </div>
         </div>
