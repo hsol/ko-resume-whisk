@@ -8,7 +8,6 @@ import {
   Copy,
   Loader2,
   Share2,
-  Volume2,
 } from "lucide-react";
 
 import { WhiskCopyToast } from "@/components/resume-whisk/whisk-copy-toast";
@@ -428,9 +427,6 @@ function ResumeWhiskAppInner() {
             />
             <div className="mt-1 flex w-full min-w-0 shrink-0 items-center justify-between gap-2 sm:mt-1.5">
               <div className="flex shrink-0 items-center gap-0.5">
-                <WhiskToolbarButton title="읽기">
-                  <Volume2 className="size-5" strokeWidth={1.5} />
-                </WhiskToolbarButton>
                 <WhiskToolbarButton
                   title="복사"
                   onClick={() => void handleCopy(inputText)}
@@ -470,9 +466,6 @@ function ResumeWhiskAppInner() {
             >
             <WhiskTranslatorTextarea readOnly value={outputText} />
             <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
-              <WhiskToolbarButton title="읽기">
-                <Volume2 className="size-5" strokeWidth={1.5} />
-              </WhiskToolbarButton>
               <WhiskToolbarButton
                 title="복사"
                 onClick={() => void handleCopy(outputText)}
