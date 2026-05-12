@@ -479,6 +479,7 @@ function ResumeWhiskAppInner() {
             <WhiskToolbarButton
               className="shrink-0"
               title="입력과 결과 바꾸기"
+              disabled={isWhisking || isSharing}
               onClick={swapPanels}
             >
               <ArrowLeftRight
@@ -504,6 +505,7 @@ function ResumeWhiskAppInner() {
               <div className="flex shrink-0 items-center gap-0.5">
                 <WhiskToolbarButton
                   title="복사"
+                  disabled={isWhisking || isSharing}
                   onClick={() => void handleCopy(inputText)}
                 >
                   <Copy className="size-5" strokeWidth={1.5} />
@@ -555,13 +557,14 @@ function ResumeWhiskAppInner() {
             <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
               <WhiskToolbarButton
                 title="복사"
+                disabled={isWhisking || isSharing}
                 onClick={() => void handleCopy(effectiveOutputText)}
               >
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
               <WhiskToolbarButton
                 title={isSharing ? "링크 준비 중…" : "스냅샷 링크 공유"}
-                disabled={isSharing || !snapshotHydrated}
+                disabled={isWhisking || isSharing || !snapshotHydrated}
                 aria-busy={isSharing}
                 onClick={() => void handleShare()}
               >
@@ -600,7 +603,7 @@ function ResumeWhiskAppInner() {
       <WhiskShareBottomSheet
         onShare={() => void handleShare()}
         isBusy={isSharing}
-        disabled={!snapshotHydrated}
+        disabled={!snapshotHydrated || isWhisking || isSharing}
       />
     </div>
   );
