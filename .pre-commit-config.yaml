@@ -4,8 +4,8 @@ repos:
   - repo: local
     hooks:
       - id: sync-whisk-prompts
-        name: sync web/prompts from skills
+        name: sync whisk/prompts from skills
         entry: bash scripts/sync-whisk-prompts.sh
         language: system
         pass_filenames: false
-        files: ^(skills/(resume-bubbler|resume-debubbler)/SKILL\.md|web/prompts/(resume-bubbler|resume-debubbler)\.system\.md)$
+        files: ^(skills/(resume-bubbler|resume-debubbler)/SKILL\.md|whisk/prompts/(resume-bubbler|resume-debubbler)\.system\.md)$

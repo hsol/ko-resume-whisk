@@ -18,7 +18,7 @@ export function getSql(): Sql {
     const url = resolveDatabaseUrl();
     if (!url) {
       throw new Error(
-        "DATABASE_URL(또는 POSTGRES_URL)이 없습니다. web에서 vercel link 후 pnpm env:pull을 실행하세요."
+        "DATABASE_URL(또는 POSTGRES_URL)이 없습니다. whisk 디렉터리에서 vercel link 후 pnpm env:pull을 실행하세요."
       );
     }
     sql = neon(url);

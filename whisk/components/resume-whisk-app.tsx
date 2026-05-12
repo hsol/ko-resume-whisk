@@ -21,6 +21,10 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/resume-whisk-clipboard";
+import {
+  WHISK_INPUT_MAX_CHARS,
+  clampWhiskInput,
+} from "@/lib/resume-whisk-input-limits";
 import { isUuidV4 } from "@/lib/snapshot-id";
 import { cn } from "@/lib/utils";
 import {
@@ -195,7 +199,7 @@ function ResumeWhiskAppInner() {
         setWhiskTypedOutput(null);
         setFromKey(fk);
         setToKey(tk);
-        setInputText(d.input);
+        setInputText(clampWhiskInput(d.input));
         setOutputText(d.output);
         setTaglinePrimary(d.copy_title);
         setTaglineSecondary(d.copy_desc);
@@ -288,6 +292,16 @@ function ResumeWhiskAppInner() {
     const controller = new AbortController();
     whiskAbortRef.current = controller;
 
+    if (searchParams.has("snapshot")) {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("snapshot");
+      next.delete("utm_source");
+      hydratedSnapshotRef.current = null;
+      setSnapshotHydrated(true);
+      const q = next.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    }
+
     if (taglineRevealTimerRef.current !== null) {
       window.clearTimeout(taglineRevealTimerRef.current);
       taglineRevealTimerRef.current = null;
@@ -352,7 +366,7 @@ function ResumeWhiskAppInner() {
     } finally {
       setIsWhisking(false);
     }
-  }, [fromKey, toKey, inputText, showCopyHint]);
+  }, [fromKey, toKey, inputText, pathname, router, searchParams, showCopyHint]);
 
   const handleShare = React.useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -449,7 +463,7 @@ function ResumeWhiskAppInner() {
     setTaglinesVisible(true);
     setTaglinePrimary(WHISK_TAGLINE_PRIMARY);
     setTaglineSecondary(WHISK_TAGLINE_SECONDARY);
-    setInputText(outputText);
+    setInputText(clampWhiskInput(outputText));
     setOutputText(inputText);
     setFromKey(toKey);
     setToKey(fromKey);
@@ -499,10 +513,12 @@ function ResumeWhiskAppInner() {
             <div className="flex shrink-0 flex-col px-3 pt-2 pb-1.5 sm:px-4 sm:pt-3 sm:pb-2 md:px-5">
             <WhiskTranslatorTextarea
               value={inputText}
+              maxLength={WHISK_INPUT_MAX_CHARS}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={SAMPLE_INPUT}
+              aria-describedby="whisk-input-char-count"
             />
-            <div className="mt-1 flex w-full min-w-0 shrink-0 items-center justify-between gap-2 sm:mt-1.5">
+            <div className="mt-1 flex w-full min-w-0 shrink-0 items-center gap-2 sm:mt-1.5">
               <div className="flex shrink-0 items-center gap-0.5">
                 <WhiskToolbarButton
                   title="복사"
@@ -512,6 +528,13 @@ function ResumeWhiskAppInner() {
                   <Copy className="size-5" strokeWidth={1.5} />
                 </WhiskToolbarButton>
               </div>
+              <span
+                id="whisk-input-char-count"
+                className="ml-auto shrink-0 text-right text-xs leading-none text-muted-foreground tabular-nums"
+                aria-live="polite"
+              >
+                {inputText.length}/{WHISK_INPUT_MAX_CHARS}
+              </span>
               <Button
                 type="button"
                 variant="default"

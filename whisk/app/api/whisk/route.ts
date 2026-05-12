@@ -2,7 +2,9 @@ import { createGateway, generateObject } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { enforceApiIpCooldown } from "@/lib/api-ip-cooldown";
 import { loadWhiskSystemPrompt } from "@/lib/load-whisk-prompt";
+import { WHISK_INPUT_MAX_CHARS } from "@/lib/resume-whisk-input-limits";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,9 +17,10 @@ const WhiskResultSchema = z.object({
   }),
 });
 
-const MAX_INPUT_CHARS = 12_000;
-
 export async function POST(request: Request) {
+  const rateLimited = await enforceApiIpCooldown(request);
+  if (rateLimited) return rateLimited;
+
   const apiKey = process.env.AI_GATEWAY_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -51,13 +54,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "input이 필요합니다." }, { status: 400 });
   }
 
-  const trimmed = input.trim();
-  if (trimmed.length > MAX_INPUT_CHARS) {
+  if (input.length > WHISK_INPUT_MAX_CHARS) {
     return NextResponse.json(
-      { error: `입력은 ${MAX_INPUT_CHARS}자 이내여야 합니다.` },
+      { error: `입력은 ${WHISK_INPUT_MAX_CHARS}자 이내여야 합니다.` },
       { status: 400 },
     );
   }
+
+  const trimmed = input.trim();
 
   const modelId = process.env.WHISK_AI_MODEL?.trim() || "openai/gpt-5-mini";
   const gateway = createGateway({ apiKey });

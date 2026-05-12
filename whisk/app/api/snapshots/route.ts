@@ -3,20 +3,25 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { enforceApiIpCooldown } from "@/lib/api-ip-cooldown";
 import { getClientIp } from "@/lib/client-ip";
 import { getSql } from "@/lib/db";
 import { ensureSnapshotsTable } from "@/lib/snapshots-schema";
+import { WHISK_INPUT_MAX_CHARS } from "@/lib/resume-whisk-input-limits";
 
 const bodySchema = z.object({
   from: z.enum(["ko", "resume"]),
   to: z.enum(["ko", "resume"]),
-  input: z.string().max(100_000),
+  input: z.string().max(WHISK_INPUT_MAX_CHARS),
   output: z.string().max(100_000),
   copy_title: z.string().max(500),
   copy_desc: z.string().max(2_000),
 });
 
 export async function POST(request: Request) {
+  const rateLimited = await enforceApiIpCooldown(request);
+  if (rateLimited) return rateLimited;
+
   let sql;
   try {
     sql = getSql();

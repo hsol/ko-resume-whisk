@@ -1,11 +1,11 @@
-# Next.js (web/)
-web/node_modules
-web/.next
-web/out
-web/.vercel
-web/.env*.local
-web/*.tsbuildinfo
-web/next-env.d.ts
+# Next.js (whisk/)
+whisk/node_modules
+whisk/.next
+whisk/out
+whisk/.vercel
+whisk/.env*.local
+whisk/*.tsbuildinfo
+whisk/next-env.d.ts
 
 # Cursor
 .cursor/
