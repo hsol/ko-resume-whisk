@@ -24,6 +24,10 @@ import {
   LANGUAGE_LABEL_MAP,
   resolvePanelLanguageKey,
 } from "@/lib/resume-whisk-languages";
+import {
+  WHISK_TAGLINE_PRIMARY,
+  WHISK_TAGLINE_SECONDARY,
+} from "@/lib/resume-whisk-taglines";
 
 const SAMPLE_INPUT =
   "퇴사하고 3개월 동안 집에서 넷플릭스 보면서 쉬었습니다. 가끔 유튜브로 코딩 강의 틀어놨습니다.";
@@ -58,6 +62,15 @@ function ResumeWhiskAppInner() {
   const [inputText, setInputText] = React.useState(SAMPLE_INPUT);
   const [outputText, setOutputText] = React.useState(SAMPLE_OUTPUT);
   const [copyHint, setCopyHint] = React.useState<string | null>(null);
+  const copyHydrated = React.useRef(false);
+  React.useEffect(() => {
+    if (copyHydrated.current) return;
+    const raw = searchParams.get("copy")?.trim();
+    if (raw) {
+      setOutputText(raw);
+      copyHydrated.current = true;
+    }
+  }, [searchParams]);
   const copyHintTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
@@ -90,14 +103,18 @@ function ResumeWhiskAppInner() {
   );
 
   const handleShare = React.useCallback(async () => {
-    const shareUrl =
-      typeof window !== "undefined" && window.location?.href
-        ? window.location.href
-        : "";
-    if (!shareUrl) {
+    if (typeof window === "undefined" || !window.location?.href) {
       showCopyHint("공유할 링크를 불러올 수 없어요");
       return;
     }
+    const u = new URL(window.location.href);
+    const out = outputText.trim();
+    if (out) {
+      u.searchParams.set("copy", out.slice(0, 560));
+    } else {
+      u.searchParams.delete("copy");
+    }
+    const shareUrl = u.toString();
 
     const title = "자소서 거품기";
     const shareData: ShareData = {
@@ -122,7 +139,7 @@ function ResumeWhiskAppInner() {
         ? "Web Share를 쓸 수 없어 링크를 클립보드에 복사했어요"
         : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
     );
-  }, [showCopyHint]);
+  }, [outputText, showCopyHint]);
 
   const swapPanels = () => {
     setInputText(outputText);
@@ -137,10 +154,11 @@ function ResumeWhiskAppInner() {
     <div className="relative flex h-dvh min-h-0 w-full max-h-dvh flex-col overflow-hidden bg-[#f9f9f9] pt-[max(1rem,env(safe-area-inset-top))]">
       {copyHint ? <WhiskCopyToast message={copyHint} /> : null}
 
-      <WhiskLayoutColumn className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
-        <Card className="flex w-full shrink-0 flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-white py-0 shadow-sm ring-1 ring-black/[0.06] md:rounded-3xl md:shadow-md">
-          <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border/60 px-3 py-2.5 sm:gap-2 sm:px-4 sm:py-3 md:px-5">
-            <div className="flex min-h-10 min-w-0 flex-1 items-center sm:min-h-9 sm:max-w-[160px]">
+      <WhiskLayoutColumn className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
+        <div className="flex w-full flex-1 flex-col justify-center gap-1.5 sm:gap-2">
+          <Card className="flex w-full shrink-0 flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-white py-0 shadow-sm ring-1 ring-black/[0.06] md:rounded-3xl md:shadow-md">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-3 md:px-7">
+            <div className="flex min-h-10 min-w-0 flex-1 items-center pl-0.5 sm:min-h-9 sm:max-w-[160px] sm:pl-1">
               <span className="text-sm font-medium text-[#1a1f2c] sm:text-base">
                 {LANGUAGE_LABEL_MAP[fromKey]}
               </span>
@@ -157,14 +175,14 @@ function ResumeWhiskAppInner() {
               />
             </WhiskToolbarButton>
 
-            <div className="flex min-h-10 min-w-0 flex-1 items-center justify-end sm:min-h-9 sm:max-w-[160px]">
+            <div className="flex min-h-10 min-w-0 flex-1 items-center justify-end pr-0.5 sm:min-h-9 sm:max-w-[160px] sm:pr-1">
               <span className="text-sm font-medium text-[#1a1f2c] sm:text-base">
                 {LANGUAGE_LABEL_MAP[toKey]}
               </span>
             </div>
-          </div>
+            </div>
 
-          <div className="flex shrink-0 flex-col px-3 pt-2 pb-1.5 sm:px-4 sm:pt-3 sm:pb-2 md:px-5">
+            <div className="flex shrink-0 flex-col px-3 pt-2 pb-1.5 sm:px-4 sm:pt-3 sm:pb-2 md:px-5">
             <WhiskTranslatorTextarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
@@ -181,11 +199,11 @@ function ResumeWhiskAppInner() {
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
             </div>
-          </div>
+            </div>
 
-          <Separator className="shrink-0 bg-border/70" />
+            <Separator className="shrink-0 bg-border/70" />
 
-          <div className="flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3">
+            <div className="flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3">
             <WhiskTranslatorTextarea readOnly value={outputText} />
             <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
               <WhiskToolbarButton title="읽기">
@@ -204,16 +222,17 @@ function ResumeWhiskAppInner() {
                 <Share2 className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
             </div>
-          </div>
-        </Card>
+            </div>
+          </Card>
 
-        <div className="flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center sm:pt-3">
-          <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
-            공백기를 전략으로
-          </h1>
-          <p className="mt-2 max-w-[95%] text-balance text-[clamp(0.9rem,1.35svh+0.65rem,1.75rem)] leading-snug text-muted-foreground sm:mt-2.5 md:mt-3 md:text-[clamp(1rem,1.2svh+0.7rem,1.875rem)] lg:text-[clamp(1.05rem,1.1svh+0.75rem,1.875rem)]">
-            쉰 게 아니라 투자한 것입니다
-          </p>
+          <div className="flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center sm:pt-3">
+            <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
+              {WHISK_TAGLINE_PRIMARY}
+            </h1>
+            <p className="mt-2 max-w-[95%] text-balance text-[clamp(0.9rem,1.35svh+0.65rem,1.75rem)] leading-snug text-muted-foreground sm:mt-2.5 md:mt-3 md:text-[clamp(1rem,1.2svh+0.7rem,1.875rem)] lg:text-[clamp(1.05rem,1.1svh+0.75rem,1.875rem)]">
+              {WHISK_TAGLINE_SECONDARY}
+            </p>
+          </div>
         </div>
       </WhiskLayoutColumn>
 
