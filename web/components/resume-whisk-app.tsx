@@ -16,6 +16,7 @@ import { WhiskShareBottomSheet } from "@/components/resume-whisk/whisk-share-bot
 import { WhiskToolbarButton } from "@/components/resume-whisk/whisk-toolbar-button";
 import { WhiskTranslatorTextarea } from "@/components/resume-whisk/whisk-translator-textarea";
 import { WhiskTypedTranslatorOutput } from "@/components/resume-whisk/whisk-typed-translator-output";
+import { WhiskWaitingPresetTyped } from "@/components/resume-whisk/whisk-waiting-preset-typed";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -539,7 +540,7 @@ function ResumeWhiskAppInner() {
             <Separator className="shrink-0 bg-border/70" />
 
             <div
-              className={`flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3 ${isWhisking ? "pointer-events-none opacity-50" : ""}`}
+              className={`flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3 ${isWhisking ? "pointer-events-none" : ""}`}
             >
             {whiskTypedOutput ? (
               <WhiskTypedTranslatorOutput
@@ -547,6 +548,8 @@ function ResumeWhiskAppInner() {
                 text={whiskTypedOutput.text}
                 onComplete={onWhiskTypedComplete}
               />
+            ) : isWhisking ? (
+              <WhiskWaitingPresetTyped active />
             ) : (
               <WhiskTranslatorTextarea
                 readOnly
@@ -584,10 +587,10 @@ function ResumeWhiskAppInner() {
 
           <div
             className={cn(
-              "flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center transition-opacity duration-500 ease-out sm:pt-3",
+              "flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center transition-opacity ease-in-out sm:pt-3",
               taglinesVisible
-                ? "opacity-100"
-                : "pointer-events-none opacity-0",
+                ? "opacity-100 duration-[1200ms]"
+                : "pointer-events-none opacity-0 duration-200",
             )}
           >
             <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
