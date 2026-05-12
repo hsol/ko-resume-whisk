@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/resume-whisk-clipboard";
 import { isUuidV4 } from "@/lib/snapshot-id";
+import { cn } from "@/lib/utils";
 import {
   DEFAULT_PANEL_FROM,
   DEFAULT_PANEL_TO,
@@ -41,6 +42,8 @@ const SAMPLE_INPUT =
 const SAMPLE_OUTPUT =
   "지속 가능한 성장을 위해 Strategic Pause를 선택, 업계 트렌드를 분석함. 신규 기술 스택을 자기 주도적으로 학습하며 커리어 재정비의 시기를 가짐.";
 
+const TAGLINE_REVEAL_DELAY_MS = 600;
+
 function ResumeWhiskAppInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -60,6 +63,11 @@ function ResumeWhiskAppInner() {
     seq: number;
   } | null>(null);
   const whiskTypedSeqRef = React.useRef(0);
+  const pendingWhiskCopyRef = React.useRef<{
+    primary: string;
+    secondary: string;
+  } | null>(null);
+  const taglineRevealTimerRef = React.useRef<number | null>(null);
 
   /** 레거시 ?from=&to= 한 번 반영 후 URL에서 제거 */
   React.useEffect(() => {
@@ -94,6 +102,7 @@ function ResumeWhiskAppInner() {
   const [taglineSecondary, setTaglineSecondary] = React.useState(
     WHISK_TAGLINE_SECONDARY,
   );
+  const [taglinesVisible, setTaglinesVisible] = React.useState(true);
   const [isWhisking, setIsWhisking] = React.useState(false);
   const whiskAbortRef = React.useRef<AbortController | null>(null);
   const [copyHint, setCopyHint] = React.useState<string | null>(null);
@@ -102,6 +111,10 @@ function ResumeWhiskAppInner() {
   React.useEffect(() => {
     return () => {
       if (copyHintTimer.current) clearTimeout(copyHintTimer.current);
+      if (taglineRevealTimerRef.current !== null) {
+        clearTimeout(taglineRevealTimerRef.current);
+        taglineRevealTimerRef.current = null;
+      }
       whiskAbortRef.current?.abort();
     };
   }, []);
@@ -189,6 +202,7 @@ function ResumeWhiskAppInner() {
         setOutputText(d.output);
         setTaglinePrimary(d.copy_title);
         setTaglineSecondary(d.copy_desc);
+        setTaglinesVisible(true);
 
         const next = new URLSearchParams();
         next.set("snapshot", sid);
@@ -214,6 +228,32 @@ function ResumeWhiskAppInner() {
   const onWhiskTypedComplete = React.useCallback((final: string) => {
     setOutputText(final);
     setWhiskTypedOutput(null);
+
+    const pending = pendingWhiskCopyRef.current;
+    if (!pending) {
+      setTaglinesVisible(true);
+      return;
+    }
+
+    if (taglineRevealTimerRef.current !== null) {
+      clearTimeout(taglineRevealTimerRef.current);
+      taglineRevealTimerRef.current = null;
+    }
+
+    taglineRevealTimerRef.current = window.setTimeout(() => {
+      taglineRevealTimerRef.current = null;
+      const p = pendingWhiskCopyRef.current;
+      pendingWhiskCopyRef.current = null;
+      if (p) {
+        setTaglinePrimary(p.primary);
+        setTaglineSecondary(p.secondary);
+        requestAnimationFrame(() => {
+          setTaglinesVisible(true);
+        });
+      } else {
+        setTaglinesVisible(true);
+      }
+    }, TAGLINE_REVEAL_DELAY_MS);
   }, []);
 
   const handleCopy = React.useCallback(
@@ -251,6 +291,13 @@ function ResumeWhiskAppInner() {
     const controller = new AbortController();
     whiskAbortRef.current = controller;
 
+    if (taglineRevealTimerRef.current !== null) {
+      window.clearTimeout(taglineRevealTimerRef.current);
+      taglineRevealTimerRef.current = null;
+    }
+    pendingWhiskCopyRef.current = null;
+    setTaglinesVisible(true);
+
     setIsWhisking(true);
     try {
       const res = await fetch("/api/whisk", {
@@ -283,16 +330,27 @@ function ResumeWhiskAppInner() {
         showCopyHint("응답을 이해할 수 없어요");
         return;
       }
+      pendingWhiskCopyRef.current = {
+        primary:
+          d.copy && typeof d.copy.title === "string"
+            ? d.copy.title
+            : WHISK_TAGLINE_PRIMARY,
+        secondary:
+          d.copy && typeof d.copy.desc === "string"
+            ? d.copy.desc
+            : WHISK_TAGLINE_SECONDARY,
+      };
+      setTaglinesVisible(false);
       whiskTypedSeqRef.current += 1;
       setWhiskTypedOutput({ text: d.text, seq: whiskTypedSeqRef.current });
-      if (d.copy && typeof d.copy.title === "string") {
-        setTaglinePrimary(d.copy.title);
-      }
-      if (d.copy && typeof d.copy.desc === "string") {
-        setTaglineSecondary(d.copy.desc);
-      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
+      if (taglineRevealTimerRef.current !== null) {
+        window.clearTimeout(taglineRevealTimerRef.current);
+        taglineRevealTimerRef.current = null;
+      }
+      pendingWhiskCopyRef.current = null;
+      setTaglinesVisible(true);
       showCopyHint("변환에 실패했어요");
     } finally {
       setIsWhisking(false);
@@ -386,6 +444,12 @@ function ResumeWhiskAppInner() {
     whiskAbortRef.current?.abort();
     setIsWhisking(false);
     setWhiskTypedOutput(null);
+    if (taglineRevealTimerRef.current !== null) {
+      window.clearTimeout(taglineRevealTimerRef.current);
+      taglineRevealTimerRef.current = null;
+    }
+    pendingWhiskCopyRef.current = null;
+    setTaglinesVisible(true);
     setTaglinePrimary(WHISK_TAGLINE_PRIMARY);
     setTaglineSecondary(WHISK_TAGLINE_SECONDARY);
     setInputText(outputText);
@@ -515,7 +579,14 @@ function ResumeWhiskAppInner() {
             </div>
           </Card>
 
-          <div className="flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center sm:pt-3">
+          <div
+            className={cn(
+              "flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center transition-opacity duration-500 ease-out sm:pt-3",
+              taglinesVisible
+                ? "opacity-100"
+                : "pointer-events-none opacity-0",
+            )}
+          >
             <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
               {taglinePrimary}
             </h1>
