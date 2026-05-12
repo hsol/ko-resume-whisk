@@ -18,6 +18,11 @@ type Props = {
   className?: string;
   /** 스켈레톤을 최소 이 시간(ms)은 보여 CLS·깜빡임 완화 */
   minSkeletonMs?: number;
+  /**
+   * 고정 하단 공유 CTA(`h-12`)와 동일 높이의 슬림 슬롯.
+   * 본문 영역이 아니라 푸터 리본에 붙일 때 사용.
+   */
+  variant?: "default" | "footer-cta";
 };
 
 /**
@@ -28,6 +33,7 @@ export function AdsenseDisplayUnit({
   adSlot,
   className,
   minSkeletonMs = 900,
+  variant = "default",
 }: Props) {
   const insRef = React.useRef<HTMLModElement>(null);
   const pushedRef = React.useRef(false);
@@ -74,10 +80,15 @@ export function AdsenseDisplayUnit({
     };
   }, [adSlot, minSkeletonMs]);
 
+  const isFooterCta = variant === "footer-cta";
+
   return (
     <div
       className={cn(
-        "relative mx-auto w-full max-w-2xl min-h-[120px] overflow-hidden",
+        "relative mx-auto w-full overflow-hidden",
+        isFooterCta
+          ? "h-12 shrink-0 rounded-xl ring-1 ring-black/[0.06]"
+          : "max-w-2xl min-h-[120px]",
         className,
       )}
     >
@@ -86,9 +97,16 @@ export function AdsenseDisplayUnit({
           className={cn(
             "absolute inset-0 z-10 flex items-center justify-center bg-[#f9f9f9]/90 p-2",
             !showSkeleton && scriptFailed && "bg-transparent",
+            isFooterCta && "bg-white/95 p-1.5 supports-[backdrop-filter]:bg-white/90",
           )}
         >
-          <AdsenseSkeleton className="max-h-full border-0 bg-muted/20" />
+          <AdsenseSkeleton
+            compact={isFooterCta}
+            className={cn(
+              "max-h-full border-0 bg-muted/20",
+              isFooterCta && "min-h-0 h-full rounded-lg p-2",
+            )}
+          />
         </div>
       )}
       <ins
@@ -97,7 +115,7 @@ export function AdsenseDisplayUnit({
         style={{ display: "block" }}
         data-ad-client={ADSENSE_CLIENT}
         data-ad-slot={adSlot}
-        data-ad-format="auto"
+        data-ad-format={isFooterCta ? "horizontal" : "auto"}
         data-full-width-responsive="true"
       />
     </div>

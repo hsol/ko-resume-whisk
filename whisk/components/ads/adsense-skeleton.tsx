@@ -1,7 +1,30 @@
 import { cn } from "@/lib/utils";
 
 /** 광고 슬롯이 비어 있거나 로드 전·실패 시 자리 표시 */
-export function AdsenseSkeleton({ className }: { className?: string }) {
+export function AdsenseSkeleton({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  /** 하단 CTA(`h-12`) 리본과 맞춘 얕은 플레이스홀더 */
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "flex h-full min-h-0 w-full flex-col justify-center gap-1.5 rounded-lg border border-border/40 bg-muted/25 px-2 py-1",
+          className,
+        )}
+        aria-hidden
+      >
+        <div className="h-2 w-1/3 animate-pulse rounded bg-muted-foreground/15" />
+        <div className="h-2 w-[70%] animate-pulse rounded bg-muted-foreground/12" />
+        <div className="h-2 w-2/3 animate-pulse rounded bg-muted-foreground/10" />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
