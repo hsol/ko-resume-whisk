@@ -1,6 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { GaRoutePath } from "@/components/ga-route-path";
 import "./globals.css";
+
+/** 서버: `GA_MEASUREMENT_ID`, 클라이언트 번들 노출용: `NEXT_PUBLIC_GA_MEASUREMENT_ID`. 비어 있으면 GA 비활성. */
+const gaMeasurementId =
+  process.env.GA_MEASUREMENT_ID?.trim() ||
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ||
+  "";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,7 +56,15 @@ export default function RootLayout({
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {gaMeasurementId ? (
+          <>
+            <GoogleAnalytics gaId={gaMeasurementId} />
+            <GaRoutePath gaId={gaMeasurementId} />
+          </>
+        ) : null}
+      </body>
     </html>
   );
 }
