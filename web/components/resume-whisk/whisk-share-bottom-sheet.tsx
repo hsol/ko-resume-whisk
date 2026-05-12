@@ -1,4 +1,4 @@
-import { Share2 } from "lucide-react";
+import { Loader2, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -27,8 +27,16 @@ export function WhiskShareBottomSheet({
           disabled={disabled || isBusy}
           aria-busy={isBusy}
         >
-          <Share2 className="size-5" strokeWidth={2} aria-hidden />
-          {isBusy ? "저장 중…" : "공유하기"}
+          {isBusy ? (
+            <Loader2
+              className="size-5 shrink-0 animate-spin"
+              strokeWidth={2}
+              aria-hidden
+            />
+          ) : (
+            <Share2 className="size-5 shrink-0" strokeWidth={2} aria-hidden />
+          )}
+          {isBusy ? "링크 준비 중…" : "공유하기"}
         </Button>
       </WhiskLayoutColumn>
     </footer>

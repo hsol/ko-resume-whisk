@@ -443,7 +443,7 @@ function ResumeWhiskAppInner() {
                 variant="default"
                 size="sm"
                 className="h-8 shrink-0 gap-1.5 px-3 font-semibold shadow-sm sm:h-8"
-                disabled={isWhisking || !inputText.trim()}
+                disabled={isWhisking || isSharing || !inputText.trim()}
                 aria-busy={isWhisking}
                 onClick={() => void runWhisk()}
               >
@@ -480,8 +480,9 @@ function ResumeWhiskAppInner() {
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
               <WhiskToolbarButton
-                title="스냅샷 링크 공유"
+                title={isSharing ? "링크 준비 중…" : "스냅샷 링크 공유"}
                 disabled={isSharing || !snapshotHydrated}
+                aria-busy={isSharing}
                 onClick={() => void handleShare()}
               >
                 {isSharing ? (
