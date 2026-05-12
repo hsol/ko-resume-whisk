@@ -90,21 +90,19 @@ function ResumeWhiskAppInner() {
   );
 
   const handleShare = React.useCallback(async () => {
-    const body = outputText.trim();
-    if (!body) {
-      showCopyHint("공유할 내용이 없어요");
-      return;
-    }
-
-    const url =
+    const shareUrl =
       typeof window !== "undefined" && window.location?.href
         ? window.location.href
         : "";
+    if (!shareUrl) {
+      showCopyHint("공유할 링크를 불러올 수 없어요");
+      return;
+    }
+
     const title = "자소서 거품기";
     const shareData: ShareData = {
       title,
-      text: `${body}\n\n— ${title}`,
-      url: url || undefined,
+      url: shareUrl,
     };
 
     const nav = typeof navigator !== "undefined" ? navigator : undefined;
@@ -118,13 +116,13 @@ function ResumeWhiskAppInner() {
       }
     }
 
-    const ok = await copyToClipboard(outputText);
+    const ok = await copyToClipboard(shareUrl);
     showCopyHint(
       ok
-        ? "Web Share를 쓸 수 없어 클립보드에 복사했어요"
+        ? "Web Share를 쓸 수 없어 링크를 클립보드에 복사했어요"
         : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
     );
-  }, [outputText, showCopyHint]);
+  }, [showCopyHint]);
 
   const swapPanels = () => {
     setInputText(outputText);
@@ -200,7 +198,7 @@ function ResumeWhiskAppInner() {
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
               <WhiskToolbarButton
-                title="공유하기"
+                title="현재 페이지 링크 공유"
                 onClick={() => void handleShare()}
               >
                 <Share2 className="size-5" strokeWidth={1.5} />
