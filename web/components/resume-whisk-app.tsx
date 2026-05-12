@@ -91,12 +91,8 @@ function ResumeWhiskAppInner() {
     router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
   }, [pathname, router, searchParams]);
 
-  const [inputText, setInputText] = React.useState(() =>
-    isUuidV4(snapshotId) ? "" : SAMPLE_INPUT,
-  );
-  const [outputText, setOutputText] = React.useState(() =>
-    isUuidV4(snapshotId) ? "" : SAMPLE_OUTPUT,
-  );
+  const [inputText, setInputText] = React.useState("");
+  const [outputText, setOutputText] = React.useState("");
   const effectiveOutputText = whiskTypedOutput?.text ?? outputText;
   const [taglinePrimary, setTaglinePrimary] = React.useState(WHISK_TAGLINE_PRIMARY);
   const [taglineSecondary, setTaglineSecondary] = React.useState(
@@ -502,7 +498,7 @@ function ResumeWhiskAppInner() {
             <WhiskTranslatorTextarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="평범한 문장을 입력하세요"
+              placeholder={SAMPLE_INPUT}
             />
             <div className="mt-1 flex w-full min-w-0 shrink-0 items-center justify-between gap-2 sm:mt-1.5">
               <div className="flex shrink-0 items-center gap-0.5">
@@ -550,7 +546,11 @@ function ResumeWhiskAppInner() {
                 onComplete={onWhiskTypedComplete}
               />
             ) : (
-              <WhiskTranslatorTextarea readOnly value={outputText} />
+              <WhiskTranslatorTextarea
+                readOnly
+                value={outputText}
+                placeholder={SAMPLE_OUTPUT}
+              />
             )}
             <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
               <WhiskToolbarButton
