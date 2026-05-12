@@ -615,6 +615,16 @@ function ResumeWhiskAppInner() {
               </WhiskToolbarButton>
             </div>
             </div>
+            <div className="flex shrink-0 justify-end border-t border-border/50 px-3 py-1.5 sm:px-4 md:px-5">
+              <a
+                href="https://hsol.info?utm_source=whisk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-medium tracking-tight text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-[11px]"
+              >
+                hsol.info
+              </a>
+            </div>
           </Card>
 
           <div
