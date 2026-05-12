@@ -15,6 +15,7 @@ import { WhiskLayoutColumn } from "@/components/resume-whisk/whisk-layout-column
 import { WhiskShareBottomSheet } from "@/components/resume-whisk/whisk-share-bottom-sheet";
 import { WhiskToolbarButton } from "@/components/resume-whisk/whisk-toolbar-button";
 import { WhiskTranslatorTextarea } from "@/components/resume-whisk/whisk-translator-textarea";
+import { WhiskTypedTranslatorOutput } from "@/components/resume-whisk/whisk-typed-translator-output";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,11 @@ function ResumeWhiskAppInner() {
   );
   const hydratedSnapshotRef = React.useRef<string | null>(null);
   const [isSharing, setIsSharing] = React.useState(false);
+  const [whiskTypedOutput, setWhiskTypedOutput] = React.useState<{
+    text: string;
+    seq: number;
+  } | null>(null);
+  const whiskTypedSeqRef = React.useRef(0);
 
   /** 레거시 ?from=&to= 한 번 반영 후 URL에서 제거 */
   React.useEffect(() => {
@@ -83,6 +89,7 @@ function ResumeWhiskAppInner() {
   const [outputText, setOutputText] = React.useState(() =>
     isUuidV4(snapshotId) ? "" : SAMPLE_OUTPUT,
   );
+  const effectiveOutputText = whiskTypedOutput?.text ?? outputText;
   const [taglinePrimary, setTaglinePrimary] = React.useState(WHISK_TAGLINE_PRIMARY);
   const [taglineSecondary, setTaglineSecondary] = React.useState(
     WHISK_TAGLINE_SECONDARY,
@@ -175,6 +182,7 @@ function ResumeWhiskAppInner() {
         }
 
         hydratedSnapshotRef.current = sid;
+        setWhiskTypedOutput(null);
         setFromKey(fk);
         setToKey(tk);
         setInputText(d.input);
@@ -202,6 +210,11 @@ function ResumeWhiskAppInner() {
 
     return () => ac.abort();
   }, [snapshotId, pathname, router, searchParams, showCopyHint]);
+
+  const onWhiskTypedComplete = React.useCallback((final: string) => {
+    setOutputText(final);
+    setWhiskTypedOutput(null);
+  }, []);
 
   const handleCopy = React.useCallback(
     async (text: string) => {
@@ -270,7 +283,8 @@ function ResumeWhiskAppInner() {
         showCopyHint("응답을 이해할 수 없어요");
         return;
       }
-      setOutputText(d.text);
+      whiskTypedSeqRef.current += 1;
+      setWhiskTypedOutput({ text: d.text, seq: whiskTypedSeqRef.current });
       if (d.copy && typeof d.copy.title === "string") {
         setTaglinePrimary(d.copy.title);
       }
@@ -297,7 +311,7 @@ function ResumeWhiskAppInner() {
           from: fromKey,
           to: toKey,
           input: inputText,
-          output: outputText,
+          output: effectiveOutputText,
           copy_title: taglinePrimary,
           copy_desc: taglineSecondary,
         }),
@@ -359,7 +373,7 @@ function ResumeWhiskAppInner() {
   }, [
     fromKey,
     inputText,
-    outputText,
+    effectiveOutputText,
     pathname,
     router,
     showCopyHint,
@@ -371,6 +385,7 @@ function ResumeWhiskAppInner() {
   const swapPanels = () => {
     whiskAbortRef.current?.abort();
     setIsWhisking(false);
+    setWhiskTypedOutput(null);
     setTaglinePrimary(WHISK_TAGLINE_PRIMARY);
     setTaglineSecondary(WHISK_TAGLINE_SECONDARY);
     setInputText(outputText);
@@ -464,11 +479,19 @@ function ResumeWhiskAppInner() {
             <div
               className={`flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3 ${isWhisking ? "pointer-events-none opacity-50" : ""}`}
             >
-            <WhiskTranslatorTextarea readOnly value={outputText} />
+            {whiskTypedOutput ? (
+              <WhiskTypedTranslatorOutput
+                key={whiskTypedOutput.seq}
+                text={whiskTypedOutput.text}
+                onComplete={onWhiskTypedComplete}
+              />
+            ) : (
+              <WhiskTranslatorTextarea readOnly value={outputText} />
+            )}
             <div className="mt-1 flex shrink-0 items-center gap-0.5 sm:mt-1.5">
               <WhiskToolbarButton
                 title="복사"
-                onClick={() => void handleCopy(outputText)}
+                onClick={() => void handleCopy(effectiveOutputText)}
               >
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
