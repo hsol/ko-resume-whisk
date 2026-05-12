@@ -27,8 +27,8 @@ import {
   LANGUAGE_KO,
   LANGUAGE_LABEL_MAP,
   LANGUAGE_RESUME,
+  type LanguageKey,
   parseLanguageKey,
-  resolvePanelLanguageKey,
 } from "@/lib/resume-whisk-languages";
 import {
   WHISK_TAGLINE_PRIMARY,
@@ -46,14 +46,8 @@ function ResumeWhiskAppInner() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const fromKey = resolvePanelLanguageKey(
-    searchParams.get("from"),
-    DEFAULT_PANEL_FROM,
-  );
-  const toKey = resolvePanelLanguageKey(
-    searchParams.get("to"),
-    DEFAULT_PANEL_TO,
-  );
+  const [fromKey, setFromKey] = React.useState<LanguageKey>(DEFAULT_PANEL_FROM);
+  const [toKey, setToKey] = React.useState<LanguageKey>(DEFAULT_PANEL_TO);
 
   const snapshotId = searchParams.get("snapshot");
   const [snapshotHydrated, setSnapshotHydrated] = React.useState(
@@ -62,18 +56,34 @@ function ResumeWhiskAppInner() {
   const hydratedSnapshotRef = React.useRef<string | null>(null);
   const [isSharing, setIsSharing] = React.useState(false);
 
+  /** 레거시 ?from=&to= 한 번 반영 후 URL에서 제거 */
   React.useEffect(() => {
-    const rf = searchParams.get("from");
-    const rt = searchParams.get("to");
-    if (rf === fromKey && rt === toKey) return;
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("from", fromKey);
-    next.set("to", toKey);
-    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-  }, [fromKey, toKey, pathname, router, searchParams]);
+    const fromParam = searchParams.get("from");
+    const toParam = searchParams.get("to");
+    if (!fromParam && !toParam) return;
 
-  const [inputText, setInputText] = React.useState(SAMPLE_INPUT);
-  const [outputText, setOutputText] = React.useState(SAMPLE_OUTPUT);
+    const fk = parseLanguageKey(fromParam);
+    const tk = parseLanguageKey(toParam);
+    if (fk && tk) {
+      queueMicrotask(() => {
+        setFromKey(fk);
+        setToKey(tk);
+      });
+    }
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("from");
+    next.delete("to");
+    const q = next.toString();
+    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const [inputText, setInputText] = React.useState(() =>
+    isUuidV4(snapshotId) ? "" : SAMPLE_INPUT,
+  );
+  const [outputText, setOutputText] = React.useState(() =>
+    isUuidV4(snapshotId) ? "" : SAMPLE_OUTPUT,
+  );
   const [taglinePrimary, setTaglinePrimary] = React.useState(WHISK_TAGLINE_PRIMARY);
   const [taglineSecondary, setTaglineSecondary] = React.useState(
     WHISK_TAGLINE_SECONDARY,
@@ -166,14 +176,14 @@ function ResumeWhiskAppInner() {
         }
 
         hydratedSnapshotRef.current = sid;
+        setFromKey(fk);
+        setToKey(tk);
         setInputText(d.input);
         setOutputText(d.output);
         setTaglinePrimary(d.copy_title);
         setTaglineSecondary(d.copy_desc);
 
         const next = new URLSearchParams();
-        next.set("from", fk);
-        next.set("to", tk);
         next.set("snapshot", sid);
         if (searchParams.get("utm_source") === "share") {
           next.set("utm_source", "share");
@@ -366,13 +376,16 @@ function ResumeWhiskAppInner() {
     setTaglineSecondary(WHISK_TAGLINE_SECONDARY);
     setInputText(outputText);
     setOutputText(inputText);
+    setFromKey(toKey);
+    setToKey(fromKey);
     const next = new URLSearchParams(searchParams.toString());
-    next.set("from", toKey);
-    next.set("to", fromKey);
     next.delete("snapshot");
     next.delete("utm_source");
+    next.delete("from");
+    next.delete("to");
+    const q = next.toString();
     hydratedSnapshotRef.current = null;
-    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
   };
 
   return (
