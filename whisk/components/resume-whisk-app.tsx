@@ -65,6 +65,10 @@ function ResumeWhiskAppInner() {
   );
   const hydratedSnapshotRef = React.useRef<string | null>(null);
   const [isSharing, setIsSharing] = React.useState(false);
+  const [shareAdDialogOpen, setShareAdDialogOpen] = React.useState(false);
+  const [shareDialogPreparedUrl, setShareDialogPreparedUrl] = React.useState<
+    string | null
+  >(null);
   const [shareAdMountKey, setShareAdMountKey] = React.useState(0);
   const [translateAdMountKey, setTranslateAdMountKey] = React.useState(0);
   const [whiskTypedOutput, setWhiskTypedOutput] = React.useState<{
@@ -373,11 +377,35 @@ function ResumeWhiskAppInner() {
     }
   }, [fromKey, toKey, inputText, pathname, router, searchParams, showCopyHint]);
 
+  const handleShareAdDialogOpenChange = React.useCallback((open: boolean) => {
+    setShareAdDialogOpen(open);
+    if (!open) setShareDialogPreparedUrl(null);
+  }, []);
+
+  const copyPreparedShareUrl = React.useCallback(async () => {
+    if (!shareDialogPreparedUrl) return;
+    const ok = await copyToClipboard(shareDialogPreparedUrl);
+    showCopyHint(
+      ok
+        ? "링크를 클립보드에 복사했어요"
+        : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
+    );
+  }, [shareDialogPreparedUrl, showCopyHint]);
+
   const handleShare = React.useCallback(async () => {
     if (typeof window === "undefined") return;
 
+    if (!effectiveOutputText.trim()) {
+      showCopyHint("공유할 변환 결과가 없어요");
+      return;
+    }
+    if (!snapshotHydrated) return;
+
+    setShareDialogPreparedUrl(null);
     setShareAdMountKey((k) => k + 1);
+    setShareAdDialogOpen(true);
     setIsSharing(true);
+    let shareFlowSucceeded = false;
     try {
       const res = await fetch("/api/snapshots", {
         method: "POST",
@@ -417,6 +445,7 @@ function ResumeWhiskAppInner() {
 
       const query = `snapshot=${encodeURIComponent(id)}&utm_source=share`;
       const shareUrl = new URL(`${pathname}?${query}`, window.location.origin).href;
+      setShareDialogPreparedUrl(shareUrl);
       router.replace(`${pathname}?${query}`, { scroll: false });
 
       const title = "자소서 거품기";
@@ -429,10 +458,14 @@ function ResumeWhiskAppInner() {
       if (nav?.share) {
         try {
           await nav.share(shareData);
+          shareFlowSucceeded = true;
           return;
         } catch (err: unknown) {
           const name = err instanceof Error ? err.name : "";
-          if (name === "AbortError") return;
+          if (name === "AbortError") {
+            shareFlowSucceeded = true;
+            return;
+          }
         }
       }
 
@@ -442,8 +475,12 @@ function ResumeWhiskAppInner() {
           ? "Web Share를 쓸 수 없어 링크를 클립보드에 복사했어요"
           : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
       );
+      shareFlowSucceeded = true;
     } finally {
       setIsSharing(false);
+      if (!shareFlowSucceeded) {
+        setShareAdDialogOpen(false);
+      }
     }
   }, [
     fromKey,
@@ -455,6 +492,7 @@ function ResumeWhiskAppInner() {
     taglinePrimary,
     taglineSecondary,
     toKey,
+    snapshotHydrated,
   ]);
 
   const swapPanels = () => {
@@ -484,6 +522,9 @@ function ResumeWhiskAppInner() {
   };
 
   const showWhiskTranslateAd = isWhisking || whiskTypedOutput !== null;
+  const hasOutputToShare = effectiveOutputText.trim().length > 0;
+  const shareControlsDisabled =
+    !snapshotHydrated || !hasOutputToShare || isWhisking || isSharing;
 
   return (
     <div className="relative flex h-dvh min-h-0 w-full max-h-dvh flex-col overflow-hidden bg-[#f9f9f9] pt-[max(1rem,env(safe-area-inset-top))]">
@@ -597,8 +638,16 @@ function ResumeWhiskAppInner() {
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
               <WhiskToolbarButton
-                title={isSharing ? "링크 준비 중…" : "스냅샷 링크 공유"}
-                disabled={isWhisking || isSharing || !snapshotHydrated}
+                title={
+                  isSharing
+                    ? "링크 준비 중…"
+                    : !snapshotHydrated
+                      ? "불러오는 중…"
+                      : !hasOutputToShare
+                        ? "변환 결과가 있어야 공유할 수 있어요"
+                        : "스냅샷 링크 공유"
+                }
+                disabled={shareControlsDisabled}
                 aria-busy={isSharing}
                 onClick={() => void handleShare()}
               >
@@ -644,12 +693,19 @@ function ResumeWhiskAppInner() {
         </div>
       </WhiskLayoutColumn>
 
-      <WhiskShareAdDialog open={isSharing} mountKey={shareAdMountKey} />
+      <WhiskShareAdDialog
+        open={shareAdDialogOpen}
+        onOpenChange={handleShareAdDialogOpenChange}
+        isBusy={isSharing}
+        mountKey={shareAdMountKey}
+        preparedShareUrl={shareDialogPreparedUrl}
+        onCopyPreparedUrl={() => void copyPreparedShareUrl()}
+      />
 
       <WhiskShareBottomSheet
         onShare={() => void handleShare()}
         isBusy={isSharing}
-        disabled={!snapshotHydrated || isWhisking || isSharing}
+        disabled={shareControlsDisabled}
         showTranslateAd={showWhiskTranslateAd}
         translateAdSlot={ADSENSE_SLOT_TRANSLATE_CTA}
         translateAdMountKey={translateAdMountKey}
