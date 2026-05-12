@@ -4,8 +4,10 @@ import {
   WHISK_TAGLINE_PRIMARY,
   WHISK_TAGLINE_SECONDARY,
 } from "@/lib/resume-whisk-taglines";
+import { fetchSnapshotCopyLines } from "@/lib/snapshot-copy";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
@@ -30,7 +32,25 @@ async function loadKoreanFonts(): Promise<[ArrayBuffer, ArrayBuffer]> {
   return [await r400.arrayBuffer(), await r700.arrayBuffer()];
 }
 
-export async function GET() {
+function truncateOgLine(s: string, maxChars: number): string {
+  const t = s.trim();
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars - 1)}…`;
+}
+
+export async function GET(request: Request) {
+  const snapshotId = new URL(request.url).searchParams.get("snapshot");
+  let primary = WHISK_TAGLINE_PRIMARY;
+  let secondary = WHISK_TAGLINE_SECONDARY;
+
+  if (snapshotId) {
+    const copy = await fetchSnapshotCopyLines(snapshotId);
+    if (copy) {
+      primary = truncateOgLine(copy.copy_title, 72);
+      secondary = truncateOgLine(copy.copy_desc, 120);
+    }
+  }
+
   let font400: ArrayBuffer;
   let font700: ArrayBuffer;
   try {
@@ -73,7 +93,7 @@ export async function GET() {
               letterSpacing: -0.03,
             }}
           >
-            {WHISK_TAGLINE_PRIMARY}
+            {primary}
           </div>
           <div
             style={{
@@ -83,7 +103,7 @@ export async function GET() {
               lineHeight: 1.35,
             }}
           >
-            {WHISK_TAGLINE_SECONDARY}
+            {secondary}
           </div>
         </div>
       </div>
