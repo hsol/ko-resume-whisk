@@ -10,6 +10,10 @@ export const runtime = "nodejs";
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
 
+/** 이전 OG 대비 1.5배 */
+const FONT_TAGLINE_PRIMARY = Math.round(56 * 1.5);
+const FONT_TAGLINE_SECONDARY = Math.round(34 * 1.5);
+
 const NOTO_KR_400_URL =
   "https://unpkg.com/@fontsource/noto-sans-kr@5.2.5/files/noto-sans-kr-korean-400-normal.woff";
 const NOTO_KR_700_URL =
@@ -43,37 +47,44 @@ export async function GET() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
           background: "#f9f9f9",
-          padding: 56,
+          padding: 48,
           fontFamily: '"Noto Sans KR", sans-serif',
         }}
       >
         <div
           style={{
-            fontSize: 34,
-            fontWeight: 700,
-            color: "#1a1f2c",
-            marginBottom: 24,
-            letterSpacing: -0.02,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            maxWidth: "100%",
           }}
         >
-          자소서 거품기
-        </div>
-        <div
-          style={{
-            fontSize: 56,
-            fontWeight: 700,
-            color: "#1a1f2c",
-            lineHeight: 1.15,
-            marginBottom: 20,
-            marginTop: 8,
-            letterSpacing: -0.03,
-          }}
-        >
-          {WHISK_TAGLINE_PRIMARY}
-        </div>
-        <div style={{ fontSize: 34, color: "#64748b", fontWeight: 400 }}>
-          {WHISK_TAGLINE_SECONDARY}
+          <div
+            style={{
+              fontSize: FONT_TAGLINE_PRIMARY,
+              fontWeight: 700,
+              color: "#1a1f2c",
+              lineHeight: 1.15,
+              marginBottom: 24,
+              letterSpacing: -0.03,
+            }}
+          >
+            {WHISK_TAGLINE_PRIMARY}
+          </div>
+          <div
+            style={{
+              fontSize: FONT_TAGLINE_SECONDARY,
+              color: "#64748b",
+              fontWeight: 400,
+              lineHeight: 1.35,
+            }}
+          >
+            {WHISK_TAGLINE_SECONDARY}
+          </div>
         </div>
       </div>
     ),

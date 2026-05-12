@@ -142,7 +142,7 @@ function ResumeWhiskAppInner() {
       {copyHint ? <WhiskCopyToast message={copyHint} /> : null}
 
       <WhiskLayoutColumn className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
-        <div className="flex w-full flex-1 flex-col justify-center gap-1.5 sm:gap-2">
+        <div className="flex w-full flex-1 flex-col justify-center gap-4 sm:gap-8">
           <Card className="flex w-full shrink-0 flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-white py-0 shadow-sm ring-1 ring-black/[0.06] md:rounded-3xl md:shadow-md">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-3 md:px-7">
             <div className="flex min-h-10 min-w-0 flex-1 items-center pl-0.5 sm:min-h-9 sm:max-w-[160px] sm:pl-1">

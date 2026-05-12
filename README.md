@@ -14,12 +14,33 @@
 
 ## 구조
 
-각 기법 디렉토리에는 `example.md` 파일이 있고, 그 안에 다음 정보가 담겨 있습니다.
+```
+이력서 거품기/
+├─ README.md
+├─ techniques/              # 기법 라이브러리 (단일 진실 공급원)
+│  └─ NN-기법명/example.md
+└─ skills/                  # techniques를 학습한 실행 스킬
+   ├─ resume-bubbler/       # 한국어 → 자소서 (정방향)
+   ├─ resume-debubbler/     # 자소서 → 한국어 (역방향)
+   └─ bubbler-maintenance/  # 위 두 스킬의 유지보수 메타 스킬
+```
+
+각 기법 디렉토리(`techniques/NN-기법명/`)에는 `example.md` 파일이 있고, 그 안에 다음 정보가 담겨 있습니다.
 
 - 기법 이름과 부제
 - Before (원본 평문)
 - After (거품 낀 이력서 문체)
 - 적용된 변환 패턴 분석
+
+## 스킬
+
+| 스킬 | 방향 | 용도 |
+|---|---|---|
+| [resume-bubbler](./skills/resume-bubbler/SKILL.md) | 평문 → 자소서 | 일상 표현을 자소서 문체로 격상 |
+| [resume-debubbler](./skills/resume-debubbler/SKILL.md) | 자소서 → 평문 | 거품을 빼서 실제 일을 드러냄 |
+| [bubbler-maintenance](./skills/bubbler-maintenance/SKILL.md) | (메타) | techniques 변경을 위 두 스킬에 동기화 |
+
+`techniques/`가 단일 진실 공급원이고, `skills/`는 그 파생물입니다. 기법을 추가·수정할 때는 항상 techniques를 먼저 고치고 `bubbler-maintenance` 지침에 따라 스킬을 동기화합니다.
 
 ## 아이디어 출처
 
