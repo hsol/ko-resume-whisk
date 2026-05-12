@@ -5,11 +5,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { GaRoutePath } from "@/components/ga-route-path";
 import "./globals.css";
 
-/** 서버: `GA_MEASUREMENT_ID`, 클라이언트 번들 노출용: `NEXT_PUBLIC_GA_MEASUREMENT_ID`. 비어 있으면 GA 비활성. */
+/** `NEXT_PUBLIC_GA_MEASUREMENT_ID`가 있을 때만 GA4 로드. 비어 있으면 비활성. */
 const gaMeasurementId =
-  process.env.GA_MEASUREMENT_ID?.trim() ||
-  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ||
-  "";
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
