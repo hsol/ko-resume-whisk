@@ -285,6 +285,8 @@ function ResumeWhiskAppInner() {
   );
 
   const runWhisk = React.useCallback(async () => {
+    if (!snapshotHydrated) return;
+
     const trimmed = inputText.trim();
     if (!trimmed) {
       showCopyHint("번역할 내용을 입력해 주세요");
@@ -380,7 +382,16 @@ function ResumeWhiskAppInner() {
     } finally {
       setIsWhisking(false);
     }
-  }, [fromKey, toKey, inputText, pathname, router, searchParams, showCopyHint]);
+  }, [
+    fromKey,
+    toKey,
+    inputText,
+    pathname,
+    router,
+    searchParams,
+    showCopyHint,
+    snapshotHydrated,
+  ]);
 
   const handleShareAdDialogOpenChange = React.useCallback((open: boolean) => {
     setShareAdDialogOpen(open);
@@ -530,6 +541,8 @@ function ResumeWhiskAppInner() {
   const hasOutputToShare = effectiveOutputText.trim().length > 0;
   const shareControlsDisabled =
     !snapshotHydrated || !hasOutputToShare || isWhisking || isSharing;
+  const snapshotBusy =
+    snapshotId !== null && isUuidV4(snapshotId) && !snapshotHydrated;
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -562,11 +575,19 @@ function ResumeWhiskAppInner() {
 
   return (
     <div className="relative flex h-dvh min-h-0 w-full max-h-dvh flex-col overflow-hidden bg-[#f9f9f9] pt-[max(1rem,env(safe-area-inset-top))]">
-      {copyHint ? <WhiskCopyToast message={copyHint} /> : null}
+      <div
+        className={cn(
+          "relative flex min-h-0 flex-1 flex-col",
+          snapshotBusy && "pointer-events-none select-none",
+        )}
+        aria-busy={snapshotBusy}
+        inert={snapshotBusy ? true : undefined}
+      >
+        {copyHint ? <WhiskCopyToast message={copyHint} /> : null}
 
-      <WhiskLayoutColumn className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
+        <WhiskLayoutColumn className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
         <div className="flex w-full flex-1 flex-col justify-center gap-4 sm:gap-8">
-          <Card className="flex w-full shrink-0 flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-white py-0 shadow-sm ring-1 ring-black/[0.06] md:rounded-3xl md:shadow-md">
+          <Card className="relative flex w-full shrink-0 flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-white py-0 shadow-sm ring-1 ring-black/[0.06] md:rounded-3xl md:shadow-md">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2 sm:gap-3 sm:px-6 sm:py-2.5 md:px-7">
             <div className="flex min-h-8 min-w-0 flex-1 items-center pl-0.5 sm:max-w-[160px] sm:pl-1">
               <span className="text-sm font-medium text-[#1a1f2c] sm:text-base">
@@ -577,7 +598,7 @@ function ResumeWhiskAppInner() {
             <WhiskToolbarButton
               className="min-h-9 min-w-9 shrink-0 sm:min-h-8 sm:min-w-8"
               title="입력과 결과 바꾸기"
-              disabled={isWhisking || isSharing}
+              disabled={isWhisking || isSharing || snapshotBusy}
               onClick={swapPanels}
             >
               <ArrowLeftRight
@@ -606,7 +627,7 @@ function ResumeWhiskAppInner() {
               <div className="flex shrink-0 items-center gap-0.5">
                 <WhiskToolbarButton
                   title="복사"
-                  disabled={isWhisking || isSharing}
+                  disabled={isWhisking || isSharing || snapshotBusy}
                   onClick={() => void handleCopy(inputText)}
                 >
                   <Copy className="size-5" strokeWidth={1.5} />
@@ -624,7 +645,9 @@ function ResumeWhiskAppInner() {
                 variant="default"
                 size="sm"
                 className="h-8 shrink-0 gap-1.5 px-3 font-semibold shadow-sm sm:h-8"
-                disabled={isWhisking || isSharing || !inputText.trim()}
+                disabled={
+                  isWhisking || isSharing || !inputText.trim() || snapshotBusy
+                }
                 aria-busy={isWhisking}
                 onClick={() => void runWhisk()}
               >
@@ -647,7 +670,7 @@ function ResumeWhiskAppInner() {
             <Separator className="shrink-0 bg-border/70" />
 
             <div
-              className={`flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3 ${isWhisking ? "pointer-events-none" : ""}`}
+              className={`flex shrink-0 flex-col px-3 pt-2 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 md:px-5 md:pb-3 ${isWhisking || snapshotBusy ? "pointer-events-none" : ""}`}
             >
             {whiskTypedOutput ? (
               <WhiskTypedTranslatorOutput
@@ -667,7 +690,7 @@ function ResumeWhiskAppInner() {
             <div className="mt-1 hidden shrink-0 items-center gap-0.5 sm:mt-1.5 sm:flex">
               <WhiskToolbarButton
                 title="복사"
-                disabled={isWhisking || isSharing}
+                disabled={isWhisking || isSharing || snapshotBusy}
                 onClick={() => void handleCopy(effectiveOutputText)}
               >
                 <Copy className="size-5" strokeWidth={1.5} />
@@ -708,6 +731,22 @@ function ResumeWhiskAppInner() {
                 hsol.info
               </a>
             </div>
+            {snapshotBusy ? (
+              <div
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#1a1f2c]/[0.14] backdrop-blur-[2px] md:rounded-3xl"
+                role="status"
+                aria-live="polite"
+                aria-label="스냅샷 불러오는 중"
+              >
+                <Loader2
+                  className="size-10 shrink-0 animate-spin text-white drop-shadow-sm"
+                  aria-hidden
+                />
+                <p className="text-xs font-medium text-white/95 drop-shadow-sm">
+                  불러오는 중…
+                </p>
+              </div>
+            ) : null}
           </Card>
 
           <div
@@ -728,15 +767,6 @@ function ResumeWhiskAppInner() {
         </div>
       </WhiskLayoutColumn>
 
-      <WhiskShareAdDialog
-        open={shareAdDialogOpen}
-        onOpenChange={handleShareAdDialogOpenChange}
-        isBusy={isSharing}
-        mountKey={shareAdMountKey}
-        preparedShareUrl={shareDialogPreparedUrl}
-        onCopyPreparedUrl={() => void copyPreparedShareUrl()}
-      />
-
       <WhiskShareBottomSheet
         onShare={() => void handleShare()}
         isBusy={isSharing}
@@ -744,6 +774,16 @@ function ResumeWhiskAppInner() {
         showTranslateAd={showWhiskTranslateAd}
         translateAdSlot={ADSENSE_SLOT_TRANSLATE_CTA}
         translateAdMountKey={translateAdMountKey}
+      />
+      </div>
+
+      <WhiskShareAdDialog
+        open={shareAdDialogOpen}
+        onOpenChange={handleShareAdDialogOpenChange}
+        isBusy={isSharing}
+        mountKey={shareAdMountKey}
+        preparedShareUrl={shareDialogPreparedUrl}
+        onCopyPreparedUrl={() => void copyPreparedShareUrl()}
       />
     </div>
   );
