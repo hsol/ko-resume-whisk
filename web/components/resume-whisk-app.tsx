@@ -20,12 +20,14 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/resume-whisk-clipboard";
+import { isUuidV4 } from "@/lib/snapshot-id";
 import {
   DEFAULT_PANEL_FROM,
   DEFAULT_PANEL_TO,
   LANGUAGE_KO,
   LANGUAGE_LABEL_MAP,
   LANGUAGE_RESUME,
+  parseLanguageKey,
   resolvePanelLanguageKey,
 } from "@/lib/resume-whisk-languages";
 import {
@@ -52,6 +54,13 @@ function ResumeWhiskAppInner() {
     searchParams.get("to"),
     DEFAULT_PANEL_TO,
   );
+
+  const snapshotId = searchParams.get("snapshot");
+  const [snapshotHydrated, setSnapshotHydrated] = React.useState(
+    () => !isUuidV4(snapshotId),
+  );
+  const hydratedSnapshotRef = React.useRef<string | null>(null);
+  const [isSharing, setIsSharing] = React.useState(false);
 
   React.useEffect(() => {
     const rf = searchParams.get("from");
@@ -89,6 +98,101 @@ function ResumeWhiskAppInner() {
       copyHintTimer.current = null;
     }, 2200);
   }, []);
+
+  React.useEffect(() => {
+    if (!isUuidV4(snapshotId)) {
+      hydratedSnapshotRef.current = null;
+      queueMicrotask(() => {
+        setSnapshotHydrated(true);
+      });
+      return;
+    }
+
+    if (hydratedSnapshotRef.current === snapshotId) {
+      queueMicrotask(() => {
+        setSnapshotHydrated(true);
+      });
+      return;
+    }
+
+    const sid = snapshotId;
+
+    queueMicrotask(() => {
+      setSnapshotHydrated(false);
+    });
+    const ac = new AbortController();
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/snapshots/${sid}`, {
+          signal: ac.signal,
+        });
+        const data: unknown = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg =
+            data &&
+            typeof data === "object" &&
+            "error" in data &&
+            typeof (data as { error: unknown }).error === "string"
+              ? (data as { error: string }).error
+              : "공유 링크를 불러오지 못했어요";
+          showCopyHint(msg);
+          return;
+        }
+        if (!data || typeof data !== "object") {
+          showCopyHint("공유 링크를 불러오지 못했어요");
+          return;
+        }
+        const d = data as {
+          from?: unknown;
+          to?: unknown;
+          input?: unknown;
+          output?: unknown;
+          copy_title?: unknown;
+          copy_desc?: unknown;
+        };
+        const fk = parseLanguageKey(typeof d.from === "string" ? d.from : null);
+        const tk = parseLanguageKey(typeof d.to === "string" ? d.to : null);
+        if (
+          !fk ||
+          !tk ||
+          typeof d.input !== "string" ||
+          typeof d.output !== "string" ||
+          typeof d.copy_title !== "string" ||
+          typeof d.copy_desc !== "string"
+        ) {
+          showCopyHint("공유 데이터 형식이 올바르지 않아요");
+          return;
+        }
+
+        hydratedSnapshotRef.current = sid;
+        setInputText(d.input);
+        setOutputText(d.output);
+        setTaglinePrimary(d.copy_title);
+        setTaglineSecondary(d.copy_desc);
+
+        const next = new URLSearchParams();
+        next.set("from", fk);
+        next.set("to", tk);
+        next.set("snapshot", sid);
+        if (searchParams.get("utm_source") === "share") {
+          next.set("utm_source", "share");
+        }
+        router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        showCopyHint("공유 링크를 불러오지 못했어요");
+      } finally {
+        if (!ac.signal.aborted) {
+          queueMicrotask(() => {
+            setSnapshotHydrated(true);
+          });
+        }
+      }
+    })();
+
+    return () => ac.abort();
+  }, [snapshotId, pathname, router, searchParams, showCopyHint]);
 
   const handleCopy = React.useCallback(
     async (text: string) => {
@@ -173,39 +277,87 @@ function ResumeWhiskAppInner() {
   }, [fromKey, toKey, inputText, showCopyHint]);
 
   const handleShare = React.useCallback(async () => {
-    const shareUrl =
-      typeof window !== "undefined" && window.location?.href
-        ? window.location.href
-        : "";
-    if (!shareUrl) {
-      showCopyHint("공유할 링크를 불러올 수 없어요");
-      return;
-    }
+    if (typeof window === "undefined") return;
 
-    const title = "자소서 거품기";
-    const shareData: ShareData = {
-      title,
-      url: shareUrl,
-    };
-
-    const nav = typeof navigator !== "undefined" ? navigator : undefined;
-    if (nav?.share) {
-      try {
-        await nav.share(shareData);
+    setIsSharing(true);
+    try {
+      const res = await fetch("/api/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: fromKey,
+          to: toKey,
+          input: inputText,
+          output: outputText,
+          copy_title: taglinePrimary,
+          copy_desc: taglineSecondary,
+        }),
+      });
+      const data: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg =
+          data &&
+          typeof data === "object" &&
+          "error" in data &&
+          typeof (data as { error: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : "공유 링크를 만들지 못했어요";
+        showCopyHint(msg);
         return;
-      } catch (err: unknown) {
-        const name = err instanceof Error ? err.name : "";
-        if (name === "AbortError") return;
       }
-    }
+      if (
+        !data ||
+        typeof data !== "object" ||
+        typeof (data as { id?: unknown }).id !== "string" ||
+        !isUuidV4((data as { id: string }).id)
+      ) {
+        showCopyHint("스냅샷을 저장하지 못했어요");
+        return;
+      }
+      const id = (data as { id: string }).id;
+      hydratedSnapshotRef.current = id;
 
-    const ok = await copyToClipboard(shareUrl);
-    showCopyHint(
-      ok
-        ? "Web Share를 쓸 수 없어 링크를 클립보드에 복사했어요"
-        : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
-    );
-  }, [showCopyHint]);
+      const query = `snapshot=${encodeURIComponent(id)}&utm_source=share`;
+      const shareUrl = new URL(`${pathname}?${query}`, window.location.origin).href;
+      router.replace(`${pathname}?${query}`, { scroll: false });
+
+      const title = "자소서 거품기";
+      const shareData: ShareData = {
+        title,
+        url: shareUrl,
+      };
+
+      const nav = typeof navigator !== "undefined" ? navigator : undefined;
+      if (nav?.share) {
+        try {
+          await nav.share(shareData);
+          return;
+        } catch (err: unknown) {
+          const name = err instanceof Error ? err.name : "";
+          if (name === "AbortError") return;
+        }
+      }
+
+      const ok = await copyToClipboard(shareUrl);
+      showCopyHint(
+        ok
+          ? "Web Share를 쓸 수 없어 링크를 클립보드에 복사했어요"
+          : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
+      );
+    } finally {
+      setIsSharing(false);
+    }
+  }, [
+    fromKey,
+    inputText,
+    outputText,
+    pathname,
+    router,
+    showCopyHint,
+    taglinePrimary,
+    taglineSecondary,
+    toKey,
+  ]);
 
   const swapPanels = () => {
     whiskAbortRef.current?.abort();
@@ -217,6 +369,9 @@ function ResumeWhiskAppInner() {
     const next = new URLSearchParams(searchParams.toString());
     next.set("from", toKey);
     next.set("to", fromKey);
+    next.delete("snapshot");
+    next.delete("utm_source");
+    hydratedSnapshotRef.current = null;
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   };
 
@@ -312,10 +467,19 @@ function ResumeWhiskAppInner() {
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
               <WhiskToolbarButton
-                title="현재 페이지 링크 공유"
+                title="스냅샷 링크 공유"
+                disabled={isSharing || !snapshotHydrated}
                 onClick={() => void handleShare()}
               >
-                <Share2 className="size-5" strokeWidth={1.5} />
+                {isSharing ? (
+                  <Loader2
+                    className="size-5 animate-spin"
+                    strokeWidth={1.5}
+                    aria-hidden
+                  />
+                ) : (
+                  <Share2 className="size-5" strokeWidth={1.5} />
+                )}
               </WhiskToolbarButton>
             </div>
             </div>
@@ -332,7 +496,11 @@ function ResumeWhiskAppInner() {
         </div>
       </WhiskLayoutColumn>
 
-      <WhiskShareBottomSheet onShare={() => void handleShare()} />
+      <WhiskShareBottomSheet
+        onShare={() => void handleShare()}
+        isBusy={isSharing}
+        disabled={!snapshotHydrated}
+      />
     </div>
   );
 }

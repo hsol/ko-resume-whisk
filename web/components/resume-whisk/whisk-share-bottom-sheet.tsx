@@ -6,8 +6,12 @@ import { WhiskLayoutColumn } from "./whisk-layout-column";
 
 export function WhiskShareBottomSheet({
   onShare,
+  isBusy = false,
+  disabled = false,
 }: {
   onShare: () => void;
+  isBusy?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <footer
@@ -20,9 +24,11 @@ export function WhiskShareBottomSheet({
           variant="default"
           className="h-12 w-full gap-2 rounded-xl px-6 text-base font-semibold shadow-sm"
           onClick={onShare}
+          disabled={disabled || isBusy}
+          aria-busy={isBusy}
         >
           <Share2 className="size-5" strokeWidth={2} aria-hidden />
-          공유하기
+          {isBusy ? "저장 중…" : "공유하기"}
         </Button>
       </WhiskLayoutColumn>
     </footer>
