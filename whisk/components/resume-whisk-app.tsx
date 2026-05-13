@@ -733,7 +733,7 @@ function ResumeWhiskAppInner() {
             </div>
             {snapshotBusy ? (
               <div
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#1a1f2c]/[0.14] backdrop-blur-[2px] md:rounded-3xl"
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-[#1a1f2c]/[0.14] backdrop-blur-[2px] md:rounded-3xl"
                 role="status"
                 aria-live="polite"
                 aria-label="스냅샷 불러오는 중"
@@ -742,9 +742,6 @@ function ResumeWhiskAppInner() {
                   className="size-10 shrink-0 animate-spin text-white drop-shadow-sm"
                   aria-hidden
                 />
-                <p className="text-xs font-medium text-white/95 drop-shadow-sm">
-                  불러오는 중…
-                </p>
               </div>
             ) : null}
           </Card>
