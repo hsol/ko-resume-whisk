@@ -11,8 +11,8 @@ import {
 } from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
-import { AdsenseDisplayUnit } from "@/components/ads/adsense-display-unit";
-import { ADSENSE_SLOT_SHARE } from "@/lib/adsense-config";
+import { CoupangPartnersUnit } from "@/components/ads/coupang-partners-unit";
+import { COUPANG_SHARE_DIALOG_WIDGET } from "@/lib/coupang-partners-config";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -60,20 +60,16 @@ export function WhiskShareAdDialog({
               ? "스냅샷을 저장하는 동안 표시됩니다. 준비가 끝나도 창은 자동으로 닫히지 않으며, 닫기·배경·Esc로 닫을 수 있습니다."
               : "닫기 버튼, 바깥 영역, Esc 키로 이 창을 닫을 수 있습니다. URL 복사로 스냅샷 링크를 클립보드에 넣을 수 있습니다."}
           </DialogDescription>
-          <p
-            className={cn(
-              "text-center text-sm font-medium",
-              isBusy
-                ? "mb-3 text-muted-foreground"
-                : showCopyLink
-                  ? "mb-2 text-foreground"
-                  : "mb-3 text-foreground",
-            )}
-          >
-            {isBusy
-              ? "링크 준비 중…"
-              : "링크가 준비됐어요. 언제든 닫을 수 있어요."}
-          </p>
+          {open ? (
+            <CoupangPartnersUnit
+              key={mountKey}
+              mountKey={mountKey}
+              widget={COUPANG_SHARE_DIALOG_WIDGET}
+              minSkeletonMs={600}
+              showDisclosure
+              hostClassName="mx-auto flex w-full max-w-[360px] min-h-[390px] items-center justify-center overflow-hidden"
+            />
+          ) : null}
           {showCopyLink ? (
             <div className="mb-3 flex justify-center">
               <button
@@ -81,16 +77,9 @@ export function WhiskShareAdDialog({
                 className="text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary/90 hover:decoration-primary"
                 onClick={onCopyPreparedUrl}
               >
-                URL 복사
+                URL 복사하여 공유하기
               </button>
             </div>
-          ) : null}
-          {open ? (
-            <AdsenseDisplayUnit
-              key={mountKey}
-              adSlot={ADSENSE_SLOT_SHARE}
-              minSkeletonMs={600}
-            />
           ) : null}
         </DialogContent>
       </DialogPortal>

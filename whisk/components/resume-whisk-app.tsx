@@ -13,6 +13,7 @@ import {
 
 import { WhiskCopyToast } from "@/components/resume-whisk/whisk-copy-toast";
 import { WhiskLayoutColumn } from "@/components/resume-whisk/whisk-layout-column";
+import { WhiskTranslateAdTopBar } from "@/components/resume-whisk/whisk-translate-ad-top-bar";
 import { WhiskShareAdDialog } from "@/components/resume-whisk/whisk-share-ad-dialog";
 import { WhiskShareBottomSheet } from "@/components/resume-whisk/whisk-share-bottom-sheet";
 import { WhiskToolbarButton } from "@/components/resume-whisk/whisk-toolbar-button";
@@ -29,7 +30,6 @@ import {
   clampWhiskInput,
 } from "@/lib/resume-whisk-input-limits";
 import { isUuidV4 } from "@/lib/snapshot-id";
-import { ADSENSE_SLOT_TRANSLATE_CTA } from "@/lib/adsense-config";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_PANEL_FROM,
@@ -324,7 +324,12 @@ function ResumeWhiskAppInner() {
     pendingWhiskCopyRef.current = null;
     setTaglinesVisible(true);
 
-    setTranslateAdMountKey((k) => k + 1);
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 639px)").matches
+    ) {
+      setTranslateAdMountKey((k) => k + 1);
+    }
     setIsWhisking(true);
     try {
       const res = await fetch("/api/whisk", {
@@ -574,7 +579,7 @@ function ResumeWhiskAppInner() {
   }, [isWhisking, whiskTypedOutput, fromKey, toKey]);
 
   return (
-    <div className="relative flex h-dvh min-h-0 w-full max-h-dvh flex-col overflow-hidden bg-[#f9f9f9] pt-[max(1rem,env(safe-area-inset-top))]">
+    <div className="relative flex h-dvh min-h-0 w-full max-h-dvh flex-col overflow-hidden bg-[#f9f9f9]">
       <div
         className={cn(
           "relative flex min-h-0 flex-1 flex-col",
@@ -585,7 +590,15 @@ function ResumeWhiskAppInner() {
       >
         {copyHint ? <WhiskCopyToast message={copyHint} /> : null}
 
-        <WhiskLayoutColumn className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
+        <WhiskTranslateAdTopBar />
+
+        <WhiskLayoutColumn
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))]",
+            showWhiskTranslateAd &&
+              "max-sm:pb-[calc(8rem+env(safe-area-inset-bottom))]",
+          )}
+        >
         <div className="flex w-full flex-1 flex-col justify-center gap-4 sm:gap-8">
           <Card className="relative flex w-full shrink-0 flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-white py-0 shadow-sm ring-1 ring-black/[0.06] md:rounded-3xl md:shadow-md">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2 sm:gap-3 sm:px-6 sm:py-2.5 md:px-7">
@@ -679,7 +692,11 @@ function ResumeWhiskAppInner() {
                 onComplete={onWhiskTypedComplete}
               />
             ) : isWhisking ? (
-              <WhiskWaitingPresetTyped active />
+              <WhiskWaitingPresetTyped
+                active
+                fromKey={fromKey}
+                toKey={toKey}
+              />
             ) : (
               <WhiskTranslatorTextarea
                 readOnly
@@ -769,7 +786,6 @@ function ResumeWhiskAppInner() {
         isBusy={isSharing}
         disabled={shareControlsDisabled}
         showTranslateAd={showWhiskTranslateAd}
-        translateAdSlot={ADSENSE_SLOT_TRANSLATE_CTA}
         translateAdMountKey={translateAdMountKey}
       />
       </div>

@@ -3,7 +3,8 @@
 import Typed from "typed.js";
 import * as React from "react";
 
-import { WHISK_WAITING_PRESET_STRINGS } from "@/lib/whisk-waiting-presets";
+import { getWhiskWaitingPresetStrings } from "@/lib/whisk-waiting-presets";
+import type { LanguageKey } from "@/lib/resume-whisk-languages";
 
 import {
   whiskTranslatorOutputInnerClass,
@@ -13,11 +14,17 @@ import {
 type Props = {
   /** 번역 요청이 진행 중일 때만 true — false가 되면 Typed 인스턴스를 destroy 합니다. */
   active: boolean;
+  fromKey: LanguageKey;
+  toKey: LanguageKey;
 };
 
-/** API 응답 대기 중 after 영역에 프리셋 문장을 타이핑 후 지우며 순회합니다. */
-export function WhiskWaitingPresetTyped({ active }: Props) {
+/** API 응답 대기 중 after 영역에 방향별 프리셋 문장을 타이핑 후 지우며 순회합니다. */
+export function WhiskWaitingPresetTyped({ active, fromKey, toKey }: Props) {
   const elRef = React.useRef<HTMLSpanElement>(null);
+  const strings = React.useMemo(
+    () => getWhiskWaitingPresetStrings(fromKey, toKey),
+    [fromKey, toKey],
+  );
 
   React.useEffect(() => {
     if (!active) return;
@@ -27,7 +34,7 @@ export function WhiskWaitingPresetTyped({ active }: Props) {
     el.innerHTML = "";
 
     const typed = new Typed(el, {
-      strings: [...WHISK_WAITING_PRESET_STRINGS],
+      strings: [...strings],
       typeSpeed: 26,
       backSpeed: 18,
       backDelay: 520,
@@ -41,7 +48,7 @@ export function WhiskWaitingPresetTyped({ active }: Props) {
     return () => {
       typed.destroy();
     };
-  }, [active]);
+  }, [active, strings]);
 
   return (
     <div className={whiskTranslatorOutputShellClass} aria-hidden="true">
