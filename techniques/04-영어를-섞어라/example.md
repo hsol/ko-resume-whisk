@@ -19,7 +19,11 @@ cross-functional 팀과 seamless하게 collaborate하여
 
 ## 변환 패턴 분석
 
-- **한영 혼용 (Konglish 동사화)**: "만들었다" → "architect하다", "물어봤다" → "collaborate하다"
-- **영어 버즈워드 삽입**: end-to-end ownership, cross-functional, seamless, on-time delivery
-- **수동 → 능동**: "기획서대로 만듦"(시키는 대로) → "ownership으로 architect"(주체적 설계)
-- **일상 행위의 비즈니스 어휘화**: "슬랙으로 물어봄" → "cross-functional collaboration"
+- **한영 혼용 (Konglish 동사화)**: 한국어 일상 동사를 영어 비즈니스 동사로 치환 (위 After의 "architect"·"collaborate"는 한 표현 예시일 뿐, 입력 맥락에 맞는 영어 동사를 자유롭게 생성)
+- **영어 버즈워드 삽입**: 영어 명사구를 문장에 끼워넣어 격상감을 만듬. 문장당 2~4개가 적정선 — 너무 많으면 부자연스럽고, 너무 적으면 거품이 안 끼어 보임
+- **수동 → 능동**: "기획서대로 만듦" 같은 시키는 대로 한 프레임을 "ownership을 가지고 주체적으로 설계·집행한" 프레임으로 전환
+- **일상 행위의 비즈니스 어휘화**: 평범한 일상 행위("슬랙으로 물어봄")를 비즈니스 어휘("cross-functional collaboration")로 격상
+
+### 변환 시 주의
+
+위 After의 영어 어휘 조합은 한 입력에 대한 한 사례일 뿐 매번 써야 할 카탈로그가 아니다. 입력 도메인과 행위 성격에 맞춰 매번 새 영어 동사·명사구 조합을 자유롭게 만들어낸다. 핵심은 "한영 혼용으로 전문성 인상 만들기"라는 메커니즘이지 특정 단어 선택이 아니다.
