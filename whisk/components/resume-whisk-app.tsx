@@ -128,8 +128,6 @@ function ResumeWhiskAppInner() {
   const [taglinesVisible, setTaglinesVisible] = React.useState(true);
   const [isWhisking, setIsWhisking] = React.useState(false);
   const whiskAbortRef = React.useRef<AbortController | null>(null);
-  const inputTextareaRef = React.useRef<HTMLTextAreaElement>(null);
-  const skipInputEditConfirmRef = React.useRef(false);
   const [copyHint, setCopyHint] = React.useState<string | null>(null);
   const copyHintTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -590,42 +588,27 @@ function ResumeWhiskAppInner() {
   const inputNeedsEditConfirm =
     (hasOutputToShare || snapshotLocked) && !inputReadOnly;
 
-  const unlockInputEditAfterConfirm = React.useCallback(() => {
-    resetTranslationForInputEdit();
-    skipInputEditConfirmRef.current = true;
-    queueMicrotask(() => {
-      const el = inputTextareaRef.current;
-      if (el) {
-        el.focus();
-        const len = el.value.length;
-        el.setSelectionRange(len, len);
-      }
-      skipInputEditConfirmRef.current = false;
-    });
-  }, [resetTranslationForInputEdit]);
+  const handleInputChange = React.useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const next = clampWhiskInput(e.target.value);
+      if (inputReadOnly) return;
 
-  const handleInputPointerDown = React.useCallback(
-    (e: React.PointerEvent<HTMLTextAreaElement>) => {
-      if (inputReadOnly || skipInputEditConfirmRef.current) return;
-      if (!inputNeedsEditConfirm) return;
-      e.preventDefault();
-      if (window.confirm(INPUT_EDIT_RESET_CONFIRM_MESSAGE)) {
-        unlockInputEditAfterConfirm();
+      if (inputNeedsEditConfirm && next !== inputText) {
+        if (window.confirm(INPUT_EDIT_RESET_CONFIRM_MESSAGE)) {
+          resetTranslationForInputEdit();
+          setInputText(next);
+        }
+        return;
       }
-    },
-    [inputNeedsEditConfirm, inputReadOnly, unlockInputEditAfterConfirm],
-  );
 
-  const handleInputFocus = React.useCallback(
-    (e: React.FocusEvent<HTMLTextAreaElement>) => {
-      if (inputReadOnly || skipInputEditConfirmRef.current) return;
-      if (!inputNeedsEditConfirm) return;
-      e.target.blur();
-      if (window.confirm(INPUT_EDIT_RESET_CONFIRM_MESSAGE)) {
-        unlockInputEditAfterConfirm();
-      }
+      setInputText(next);
     },
-    [inputNeedsEditConfirm, inputReadOnly, unlockInputEditAfterConfirm],
+    [
+      inputNeedsEditConfirm,
+      inputReadOnly,
+      inputText,
+      resetTranslationForInputEdit,
+    ],
   );
 
   const copyEditable =
@@ -735,14 +718,11 @@ function ResumeWhiskAppInner() {
 
             <div className="flex shrink-0 flex-col px-3 pt-2 pb-1.5 sm:px-4 sm:pt-3 sm:pb-2 md:px-5">
             <WhiskTranslatorTextarea
-              ref={inputTextareaRef}
               shortOnMobile
               readOnly={inputReadOnly}
               value={inputText}
               maxLength={WHISK_INPUT_MAX_CHARS}
-              onChange={(e) => setInputText(clampWhiskInput(e.target.value))}
-              onPointerDown={handleInputPointerDown}
-              onFocus={handleInputFocus}
+              onChange={handleInputChange}
               placeholder={SAMPLE_INPUT}
               aria-describedby="whisk-input-char-count"
               aria-readonly={inputReadOnly || undefined}
