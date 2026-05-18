@@ -76,6 +76,7 @@ export const metadata: Metadata = {
         url: "/api/og",
         width: 1200,
         height: 630,
+        type: "image/png",
         alt: SITE_NAME,
       },
     ],

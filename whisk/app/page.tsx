@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ResumeWhiskApp } from "@/components/resume-whisk-app";
-import { getSiteUrl } from "@/lib/site-url";
+import { getRequestSiteUrl, getSiteUrl } from "@/lib/site-url";
 import { isUuidV4 } from "@/lib/snapshot-id";
 import {
   buildSnapshotDescription,
@@ -36,9 +36,10 @@ export async function generateMetadata({
     };
   }
 
+  const siteUrl = await getRequestSiteUrl();
   const canonicalPath = `/?snapshot=${encodeURIComponent(snap)}`;
-  const canonicalUrl = `${getSiteUrl()}${canonicalPath}`;
-  const ogUrl = `/api/og?snapshot=${encodeURIComponent(snap)}`;
+  const canonicalUrl = `${siteUrl}${canonicalPath}`;
+  const ogImageUrl = `${siteUrl}/api/og?snapshot=${encodeURIComponent(snap)}`;
   const description = buildSnapshotDescription(meta);
   // title 은 layout 의 template("%s - 자소서 거품기") 에 의해 자동 결합된다.
   const title = meta.copy_title;
@@ -56,14 +57,16 @@ export async function generateMetadata({
       title: `${title} - ${SITE_NAME}`,
       description,
       locale: "ko_KR",
+      authors: ["yeol.dev"],
       publishedTime:
         meta.created_at instanceof Date
           ? meta.created_at.toISOString()
           : new Date(meta.created_at).toISOString(),
       images: [
         {
-          url: ogUrl,
+          url: ogImageUrl,
           ...OG_SIZE,
+          type: "image/png",
           alt: title,
         },
       ],
@@ -72,7 +75,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: `${title} - ${SITE_NAME}`,
       description,
-      images: [ogUrl],
+      images: [ogImageUrl],
     },
     robots: {
       index: true,

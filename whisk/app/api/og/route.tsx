@@ -9,6 +9,10 @@ import { fetchSnapshotCopyLines } from "@/lib/snapshot-copy";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** 소셜 크롤러 재요청·CDN 캐시용(robots.txt 에서 /api/og 허용). */
+const OG_CACHE_CONTROL =
+  "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
 
@@ -111,6 +115,9 @@ export async function GET(request: Request) {
     {
       width: OG_WIDTH,
       height: OG_HEIGHT,
+      headers: {
+        "Cache-Control": OG_CACHE_CONTROL,
+      },
       fonts: [
         {
           name: "Noto Sans KR",

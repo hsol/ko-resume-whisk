@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 /**
  * 운영·SEO용 절대 base URL (canonical, metadataBase, og:url, JSON-LD).
  *
@@ -39,4 +41,25 @@ export function getSiteUrl(): string {
   }
 
   return "http://localhost:3000";
+}
+
+/**
+ * 현재 요청 호스트 기준 절대 origin.
+ * Vercel에 연결된 커스텀 도메인(bubble-resume.hsol.info 등)으로 접속했을 때
+ * og:url·og:image·canonical 이 공유 URL과 같은 호스트를 가리키도록 한다.
+ */
+export async function getRequestSiteUrl(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (host) {
+      const proto =
+        h.get("x-forwarded-proto") ??
+        (host.includes("localhost") ? "http" : "https");
+      return normalizeOrigin(`${proto}://${host.split(",")[0]!.trim()}`);
+    }
+  } catch {
+    // headers() 는 요청 컨텍스트 밖(빌드·정적 생성)에서 실패할 수 있다.
+  }
+  return getSiteUrl();
 }
