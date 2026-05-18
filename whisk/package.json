@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "env:pull": "vercel env pull .env.local --yes",
-    "ai:gateway-demo": "node --env-file=.env.local index.mjs"
+    "ai:gateway-demo": "node --env-file=.env.local index.mjs",
+    "test:prompt": "node --env-file=.env.local scripts/test-prompt.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
