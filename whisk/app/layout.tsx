@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { GaRoutePath } from "@/components/ga-route-path";
 import { Toaster } from "@/components/ui/sonner";
+import { OG_IMAGE_PATH, OG_IMAGE_SIZE } from "@/lib/og-image";
 import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -73,9 +74,8 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     images: [
       {
-        url: "/api/og",
-        width: 1200,
-        height: 630,
+        url: OG_IMAGE_PATH,
+        ...OG_IMAGE_SIZE,
         type: "image/png",
         alt: SITE_NAME,
       },
@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    images: ["/api/og"],
+    images: [OG_IMAGE_PATH],
   },
 
   robots: {

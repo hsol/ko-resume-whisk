@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ResumeWhiskApp } from "@/components/resume-whisk-app";
+import { buildOgImageUrl, OG_IMAGE_SIZE } from "@/lib/og-image";
 import { getRequestSiteUrl, getSiteUrl } from "@/lib/site-url";
 import { isUuidV4 } from "@/lib/snapshot-id";
 import {
@@ -10,7 +11,6 @@ import {
   type SnapshotMeta,
 } from "@/lib/snapshot-meta";
 
-const OG_SIZE = { width: 1200, height: 630 } as const;
 const SITE_NAME = "자소서 거품기";
 
 type SearchParams = Promise<{ snapshot?: string }>;
@@ -39,7 +39,7 @@ export async function generateMetadata({
   const siteUrl = await getRequestSiteUrl();
   const canonicalPath = `/?snapshot=${encodeURIComponent(snap)}`;
   const canonicalUrl = `${siteUrl}${canonicalPath}`;
-  const ogImageUrl = `${siteUrl}/api/og?snapshot=${encodeURIComponent(snap)}`;
+  const ogImageUrl = buildOgImageUrl(siteUrl, snap);
   const description = buildSnapshotDescription(meta);
   // title 은 layout 의 template("%s - 자소서 거품기") 에 의해 자동 결합된다.
   const title = meta.copy_title;
@@ -65,7 +65,7 @@ export async function generateMetadata({
       images: [
         {
           url: ogImageUrl,
-          ...OG_SIZE,
+          ...OG_IMAGE_SIZE,
           type: "image/png",
           alt: title,
         },
