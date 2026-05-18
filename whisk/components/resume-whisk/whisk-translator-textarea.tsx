@@ -10,16 +10,19 @@ export const whiskTranslatorFieldTypographyClass =
 export const whiskTranslatorFieldHeightClass =
   "h-[calc(1.375em*5+1rem)] max-h-[calc(1.375em*5+1rem)]";
 
-export function WhiskTranslatorTextarea({
-  className,
-  shortOnMobile = false,
-  ...props
-}: Omit<React.ComponentProps<typeof Textarea>, "rows"> & {
-  /** `<sm`에서 시각적 높이를 3줄로 줄임(모바일 세로 절약) */
-  shortOnMobile?: boolean;
-}) {
+export const WhiskTranslatorTextarea = React.forwardRef<
+  HTMLTextAreaElement,
+  Omit<React.ComponentProps<typeof Textarea>, "rows"> & {
+    /** `<sm`에서 시각적 높이를 3줄로 줄임(모바일 세로 절약) */
+    shortOnMobile?: boolean;
+  }
+>(function WhiskTranslatorTextarea(
+  { className, shortOnMobile = false, ...props },
+  ref,
+) {
   return (
     <Textarea
+      ref={ref}
       rows={5}
       className={cn(
         "field-sizing-fixed block !min-h-0 w-full shrink-0 resize-none overflow-y-auto border-0 bg-transparent px-0 py-2 shadow-none focus-visible:ring-0",
@@ -32,4 +35,4 @@ export function WhiskTranslatorTextarea({
       {...props}
     />
   );
-}
+});

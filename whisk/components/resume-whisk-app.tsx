@@ -15,6 +15,10 @@ import { WhiskCopyToast } from "@/components/resume-whisk/whisk-copy-toast";
 import { WhiskLayoutColumn } from "@/components/resume-whisk/whisk-layout-column";
 import { WhiskTranslateAdTopBar } from "@/components/resume-whisk/whisk-translate-ad-top-bar";
 import { WhiskShareAdDialog } from "@/components/resume-whisk/whisk-share-ad-dialog";
+import {
+  COPY_EDIT_TOOLTIP,
+  WhiskEditableTagline,
+} from "@/components/resume-whisk/whisk-editable-tagline";
 import { WhiskShareBottomSheet } from "@/components/resume-whisk/whisk-share-bottom-sheet";
 import { WhiskToolbarButton } from "@/components/resume-whisk/whisk-toolbar-button";
 import { WhiskTranslatorTextarea } from "@/components/resume-whisk/whisk-translator-textarea";
@@ -52,6 +56,11 @@ const SAMPLE_OUTPUT =
   "지속 가능한 성장을 위해 Strategic Pause를 선택, 업계 트렌드를 분석함. 신규 기술 스택을 자기 주도적으로 학습하며 커리어 재정비의 시기를 가짐.";
 
 const TAGLINE_REVEAL_DELAY_MS = 600;
+const COPY_TITLE_MAX = 500;
+const COPY_DESC_MAX = 2_000;
+const COPY_EDIT_HINT_AUTO_DISMISS_MS = 8_000;
+const INPUT_EDIT_RESET_CONFIRM_MESSAGE =
+  "원문을 수정하면 번역 결과가 사라집니다. 그래도 수정하시겠습니까?";
 
 /** 모바일 번역·typed·하단 광고 구간 Sonner 토스트 id */
 const WHISK_TRANSLATE_AD_TOAST_ID = "whisk-translate-ad";
@@ -119,6 +128,8 @@ function ResumeWhiskAppInner() {
   const [taglinesVisible, setTaglinesVisible] = React.useState(true);
   const [isWhisking, setIsWhisking] = React.useState(false);
   const whiskAbortRef = React.useRef<AbortController | null>(null);
+  const inputTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const skipInputEditConfirmRef = React.useRef(false);
   const [copyHint, setCopyHint] = React.useState<string | null>(null);
   const copyHintTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -516,6 +527,31 @@ function ResumeWhiskAppInner() {
     snapshotHydrated,
   ]);
 
+  const resetTranslationForInputEdit = React.useCallback(() => {
+    whiskAbortRef.current?.abort();
+    setIsWhisking(false);
+    setWhiskTypedOutput(null);
+    if (taglineRevealTimerRef.current !== null) {
+      window.clearTimeout(taglineRevealTimerRef.current);
+      taglineRevealTimerRef.current = null;
+    }
+    pendingWhiskCopyRef.current = null;
+    setTaglinesVisible(true);
+    setTaglinePrimary(WHISK_TAGLINE_PRIMARY);
+    setTaglineSecondary(WHISK_TAGLINE_SECONDARY);
+    setOutputText("");
+    setShareDialogPreparedUrl(null);
+
+    if (searchParams.has("snapshot") || searchParams.has("utm_source")) {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("snapshot");
+      next.delete("utm_source");
+      hydratedSnapshotRef.current = null;
+      const q = next.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    }
+  }, [pathname, router, searchParams]);
+
   const swapPanels = () => {
     whiskAbortRef.current?.abort();
     setIsWhisking(false);
@@ -548,6 +584,76 @@ function ResumeWhiskAppInner() {
     !snapshotHydrated || !hasOutputToShare || isWhisking || isSharing;
   const snapshotBusy =
     snapshotId !== null && isUuidV4(snapshotId) && !snapshotHydrated;
+  const snapshotLocked =
+    isUuidV4(snapshotId) && snapshotHydrated;
+  const inputReadOnly = isWhisking || snapshotBusy;
+  const inputNeedsEditConfirm =
+    (hasOutputToShare || snapshotLocked) && !inputReadOnly;
+
+  const unlockInputEditAfterConfirm = React.useCallback(() => {
+    resetTranslationForInputEdit();
+    skipInputEditConfirmRef.current = true;
+    queueMicrotask(() => {
+      const el = inputTextareaRef.current;
+      if (el) {
+        el.focus();
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      }
+      skipInputEditConfirmRef.current = false;
+    });
+  }, [resetTranslationForInputEdit]);
+
+  const handleInputPointerDown = React.useCallback(
+    (e: React.PointerEvent<HTMLTextAreaElement>) => {
+      if (inputReadOnly || skipInputEditConfirmRef.current) return;
+      if (!inputNeedsEditConfirm) return;
+      e.preventDefault();
+      if (window.confirm(INPUT_EDIT_RESET_CONFIRM_MESSAGE)) {
+        unlockInputEditAfterConfirm();
+      }
+    },
+    [inputNeedsEditConfirm, inputReadOnly, unlockInputEditAfterConfirm],
+  );
+
+  const handleInputFocus = React.useCallback(
+    (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      if (inputReadOnly || skipInputEditConfirmRef.current) return;
+      if (!inputNeedsEditConfirm) return;
+      e.target.blur();
+      if (window.confirm(INPUT_EDIT_RESET_CONFIRM_MESSAGE)) {
+        unlockInputEditAfterConfirm();
+      }
+    },
+    [inputNeedsEditConfirm, inputReadOnly, unlockInputEditAfterConfirm],
+  );
+
+  const copyEditable =
+    hasOutputToShare &&
+    taglinesVisible &&
+    !snapshotLocked &&
+    !isWhisking &&
+    !isSharing &&
+    !snapshotBusy;
+
+  const [copyEditHintOpen, setCopyEditHintOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!copyEditable) {
+      setCopyEditHintOpen(false);
+      return;
+    }
+    setCopyEditHintOpen(true);
+    const timer = window.setTimeout(
+      () => setCopyEditHintOpen(false),
+      COPY_EDIT_HINT_AUTO_DISMISS_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [copyEditable]);
+
+  const dismissCopyEditHint = React.useCallback(() => {
+    setCopyEditHintOpen(false);
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -629,12 +735,17 @@ function ResumeWhiskAppInner() {
 
             <div className="flex shrink-0 flex-col px-3 pt-2 pb-1.5 sm:px-4 sm:pt-3 sm:pb-2 md:px-5">
             <WhiskTranslatorTextarea
+              ref={inputTextareaRef}
               shortOnMobile
+              readOnly={inputReadOnly}
               value={inputText}
               maxLength={WHISK_INPUT_MAX_CHARS}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(e) => setInputText(clampWhiskInput(e.target.value))}
+              onPointerDown={handleInputPointerDown}
+              onFocus={handleInputFocus}
               placeholder={SAMPLE_INPUT}
               aria-describedby="whisk-input-char-count"
+              aria-readonly={inputReadOnly || undefined}
             />
             <div className="mt-1 flex w-full min-w-0 shrink-0 items-center gap-2 sm:mt-1.5">
               <div className="flex shrink-0 items-center gap-0.5">
@@ -765,18 +876,46 @@ function ResumeWhiskAppInner() {
 
           <div
             className={cn(
-              "flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center transition-opacity ease-in-out sm:pt-3",
+              "relative flex w-full shrink-0 flex-col items-center px-0.5 pt-2 text-center transition-opacity ease-in-out sm:pt-3",
               taglinesVisible
                 ? "opacity-100 duration-[1200ms]"
                 : "pointer-events-none opacity-0 duration-200",
             )}
           >
-            <h1 className="max-w-[95%] text-balance text-[clamp(1.35rem,2.75svh+0.85rem,3.75rem)] font-bold tracking-tight text-[#1a1f2c] sm:max-w-none md:text-[clamp(1.5rem,2.5svh+1rem,4.5rem)] lg:text-[clamp(1.75rem,2.25svh+1.1rem,4.5rem)]">
-              {taglinePrimary}
-            </h1>
-            <p className="mt-2 max-w-[95%] text-balance text-[clamp(0.9rem,1.35svh+0.65rem,1.75rem)] leading-snug text-muted-foreground sm:mt-2.5 md:mt-3 md:text-[clamp(1rem,1.2svh+0.7rem,1.875rem)] lg:text-[clamp(1.05rem,1.1svh+0.75rem,1.875rem)]">
-              {taglineSecondary}
-            </p>
+            {copyEditable && copyEditHintOpen ? (
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 max-w-[min(100%,18rem)] -translate-x-1/2 rounded-lg bg-[#1a1f2c] px-3 py-2 text-xs font-medium leading-snug text-white shadow-md sm:text-sm"
+              >
+                {COPY_EDIT_TOOLTIP}
+                <span
+                  className="absolute left-1/2 top-full -mt-px size-0 -translate-x-1/2 border-x-8 border-t-8 border-x-transparent border-t-[#1a1f2c]"
+                  aria-hidden
+                />
+              </div>
+            ) : null}
+            <WhiskEditableTagline
+              variant="primary"
+              value={taglinePrimary}
+              editable={copyEditable}
+              maxLength={COPY_TITLE_MAX}
+              onCommit={(next) => {
+                dismissCopyEditHint();
+                setTaglinePrimary(next);
+              }}
+              onEditInteraction={dismissCopyEditHint}
+            />
+            <WhiskEditableTagline
+              variant="secondary"
+              value={taglineSecondary}
+              editable={copyEditable}
+              maxLength={COPY_DESC_MAX}
+              onCommit={(next) => {
+                dismissCopyEditHint();
+                setTaglineSecondary(next);
+              }}
+              onEditInteraction={dismissCopyEditHint}
+            />
           </div>
         </div>
       </WhiskLayoutColumn>
