@@ -56,9 +56,9 @@ export const metadata: Metadata = {
   keywords: SEO_KEYWORDS,
   applicationName: SITE_NAME,
   category: "productivity",
-  creator: "yeol.dev",
-  publisher: "yeol.dev",
-  authors: [{ name: "yeol.dev" }],
+  creator: "hsol.info",
+  publisher: "hsol.info",
+  authors: [{ name: "hsol.info" }],
 
   alternates: {
     canonical: "/",

@@ -57,7 +57,7 @@ export async function generateMetadata({
       title: `${title} - ${SITE_NAME}`,
       description,
       locale: "ko_KR",
-      authors: ["yeol.dev"],
+      authors: ["hsol.info"],
       publishedTime:
         meta.created_at instanceof Date
           ? meta.created_at.toISOString()
@@ -148,7 +148,7 @@ function StructuredData({
       "평범한 일상 업무 기록을 이력서·자기소개서 문체로 바꿔 보여 주는 거품기.",
     creator: {
       "@type": "Person",
-      name: "yeol.dev",
+      name: "hsol.info",
     },
     offers: {
       "@type": "Offer",
