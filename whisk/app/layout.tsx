@@ -6,6 +6,12 @@ import { Analytics } from "@vercel/analytics/next";
 import { GaRoutePath } from "@/components/ga-route-path";
 import { Toaster } from "@/components/ui/sonner";
 import { OG_IMAGE_PATH, OG_IMAGE_SIZE } from "@/lib/og-image";
+import {
+  SEO_KEYWORDS,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TITLE,
+} from "@/lib/site-seo";
 import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -25,37 +31,15 @@ const geistMono = Geist_Mono({
 
 const siteUrl = getSiteUrl();
 
-const SITE_NAME = "자소서 거품기";
-const SITE_DESCRIPTION =
-  "평범한 일상 업무 기록을 이력서·자기소개서 문체로 바꿔 보여 주는 거품기. 거꾸로 거품을 빼서 실제로 무슨 일을 했는지 환원해 주기도 합니다.";
-
-const SEO_KEYWORDS = [
-  "자소서 거품기",
-  "자소서 거품",
-  "자소서 문체 변환",
-  "이력서 자동 작성",
-  "자기소개서 변환",
-  "자기소개서 거품",
-  "자소서 도우미",
-  "이력서 도우미",
-  "취업 자소서",
-  "경력기술서 변환",
-  "자소서 번역",
-  "자소서 디버블러",
-  "AI 자소서",
-  "AI 이력서",
-  "이력서 거품기",
-];
-
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
   title: {
-    template: "%s - 자소서 거품기",
-    default: SITE_NAME,
+    template: `%s - ${SITE_NAME}`,
+    default: SITE_TITLE,
   },
   description: SITE_DESCRIPTION,
-  keywords: SEO_KEYWORDS,
+  keywords: [...SEO_KEYWORDS],
   applicationName: SITE_NAME,
   category: "productivity",
   creator: "hsol.info",
@@ -70,7 +54,7 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     siteName: SITE_NAME,
-    title: SITE_NAME,
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     locale: "ko_KR",
     images: [
@@ -85,7 +69,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: SITE_NAME,
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     images: [OG_IMAGE_PATH],
   },

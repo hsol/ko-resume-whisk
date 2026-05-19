@@ -48,6 +48,7 @@ import {
   WHISK_TAGLINE_PRIMARY,
   WHISK_TAGLINE_SECONDARY,
 } from "@/lib/resume-whisk-taglines";
+import { SITE_NAME } from "@/lib/site-seo";
 
 const SAMPLE_INPUT =
   "퇴사하고 3개월 동안 집에서 넷플릭스 보면서 쉬었습니다. 가끔 유튜브로 코딩 강의 틀어놨습니다.";
@@ -478,7 +479,7 @@ function ResumeWhiskAppInner() {
       setShareDialogPreparedUrl(shareUrl);
       router.replace(`${pathname}?${query}`, { scroll: false });
 
-      const title = "자소서 거품기";
+      const title = SITE_NAME;
       const shareData: ShareData = {
         title,
         url: shareUrl,

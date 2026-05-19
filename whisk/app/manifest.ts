@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site-seo";
+
 /**
  * PWA Web App Manifest.
  * Next.js App Router 컨벤션에 따라 이 파일이 /manifest.webmanifest 로 자동 노출되고
@@ -7,9 +9,9 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "자소서 거품기",
+    name: SITE_NAME,
     short_name: "거품기",
-    description: "평범한 문장을 이력서·자소서 문체로 바꿔 보여 주는 거품기",
+    description: SITE_DESCRIPTION,
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

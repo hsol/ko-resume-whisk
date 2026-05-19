@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 
 import { ResumeWhiskApp } from "@/components/resume-whisk-app";
 import { buildOgImageUrl, OG_IMAGE_SIZE } from "@/lib/og-image";
+import {
+  SITE_ALTERNATE_NAMES,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SEO_KEYWORDS,
+} from "@/lib/site-seo";
 import { getRequestSiteUrl, getSiteUrl } from "@/lib/site-url";
 import { isUuidV4 } from "@/lib/snapshot-id";
 import {
@@ -10,8 +16,6 @@ import {
   fetchSnapshotMeta,
   type SnapshotMeta,
 } from "@/lib/snapshot-meta";
-
-const SITE_NAME = "자소서 거품기";
 
 type SearchParams = Promise<{ snapshot?: string }>;
 
@@ -127,8 +131,10 @@ function StructuredData({
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_NAME,
+    alternateName: [...SITE_ALTERNATE_NAMES],
     url: siteUrl,
     inLanguage: "ko",
+    description: SITE_DESCRIPTION,
     potentialAction: {
       "@type": "SearchAction",
       target: `${siteUrl}/?snapshot={snapshot_id}`,
@@ -140,12 +146,13 @@ function StructuredData({
     "@context": "https://schema.org",
     "@type": "WebApplication",
     name: SITE_NAME,
+    alternateName: [...SITE_ALTERNATE_NAMES],
     url: siteUrl,
     applicationCategory: "ProductivityApplication",
     operatingSystem: "Web",
     inLanguage: "ko",
-    description:
-      "평범한 일상 업무 기록을 이력서·자기소개서 문체로 바꿔 보여 주는 거품기.",
+    description: SITE_DESCRIPTION,
+    keywords: SEO_KEYWORDS.join(", "),
     creator: {
       "@type": "Person",
       name: "hsol.info",
