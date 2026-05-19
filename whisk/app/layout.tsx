@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 
 import { GaRoutePath } from "@/components/ga-route-path";
 import { Toaster } from "@/components/ui/sonner";
@@ -152,6 +153,7 @@ export default function RootLayout({
             <GaRoutePath gaId={gaMeasurementId} />
           </>
         ) : null}
+        <Analytics />
       </body>
     </html>
   );
