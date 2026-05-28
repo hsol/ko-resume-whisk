@@ -48,7 +48,11 @@ import {
   WHISK_TAGLINE_PRIMARY,
   WHISK_TAGLINE_SECONDARY,
 } from "@/lib/resume-whisk-taglines";
+import { getWhiskWaitingPresetStrings } from "@/lib/whisk-waiting-presets";
 import { SITE_NAME } from "@/lib/site-seo";
+
+const TEST_MODE_INPUT = "테스트";
+const TEST_MODE_DELAY_MS = 1000;
 
 const SAMPLE_INPUT =
   "퇴사하고 3개월 동안 집에서 넷플릭스 보면서 쉬었습니다. 가끔 유튜브로 코딩 강의 틀어놨습니다.";
@@ -342,6 +346,40 @@ function ResumeWhiskAppInner() {
     }
     setIsWhisking(true);
     try {
+      if (trimmed === TEST_MODE_INPUT) {
+        await new Promise<void>((resolve, reject) => {
+          if (controller.signal.aborted) {
+            reject(new DOMException("Aborted", "AbortError"));
+            return;
+          }
+          const timer = window.setTimeout(() => {
+            controller.signal.removeEventListener("abort", onAbort);
+            resolve();
+          }, TEST_MODE_DELAY_MS);
+          const onAbort = () => {
+            window.clearTimeout(timer);
+            reject(new DOMException("Aborted", "AbortError"));
+          };
+          controller.signal.addEventListener("abort", onAbort, { once: true });
+        });
+
+        const presets = getWhiskWaitingPresetStrings(fromKey, toKey);
+        const sampleText =
+          presets[Math.floor(Math.random() * presets.length)] ?? "";
+
+        pendingWhiskCopyRef.current = {
+          primary: WHISK_TAGLINE_PRIMARY,
+          secondary: WHISK_TAGLINE_SECONDARY,
+        };
+        setTaglinesVisible(false);
+        whiskTypedSeqRef.current += 1;
+        setWhiskTypedOutput({
+          text: sampleText,
+          seq: whiskTypedSeqRef.current,
+        });
+        return;
+      }
+
       const res = await fetch("/api/whisk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
