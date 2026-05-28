@@ -50,6 +50,12 @@ import {
   WHISK_TAGLINE_SECONDARY,
 } from "@/lib/resume-whisk-taglines";
 import { getWhiskWaitingPresetStrings } from "@/lib/whisk-waiting-presets";
+import {
+  readQuotaCanTranslate,
+  readQuotaRedirectUrl,
+  readQuotaTranslatedToday,
+  useWhiskDailyQuota,
+} from "@/lib/whisk-daily-quota";
 import { SITE_NAME } from "@/lib/site-seo";
 
 const TEST_MODE_INPUT = "테스트";
@@ -89,7 +95,20 @@ function ResumeWhiskAppInner() {
   const [shareAdMountKey, setShareAdMountKey] = React.useState(0);
   const [translateAdMountKey, setTranslateAdMountKey] = React.useState(0);
   const [editConfirmOpen, setEditConfirmOpen] = React.useState(false);
+  const [editConfirmVariant, setEditConfirmVariant] = React.useState<
+    "edit" | "locked"
+  >("edit");
   const pendingEditTextRef = React.useRef<string | null>(null);
+
+  /**
+   * 일일 쿼터: 무료 번역은 백그라운드로 스냅샷 자동 생성 후 그 URL을
+   * localStorage에 저장. 1회 사용 후 공유 안 누른 상태로 재진입하면
+   * 그 URL로 자동 리다이렉트.
+   */
+  const { recordFirstTranslation, markShared } = useWhiskDailyQuota();
+  const firstQuotaHintShownRef = React.useRef(false);
+  /** mount 시 락 판단을 한 번만 하도록 */
+  const lockRedirectAttemptedRef = React.useRef(false);
   const [whiskTypedOutput, setWhiskTypedOutput] = React.useState<{
     text: string;
     seq: number;
@@ -154,6 +173,36 @@ function ResumeWhiskAppInner() {
       setCopyHint(null);
       copyHintTimer.current = null;
     }, 2200);
+  }, []);
+
+  /**
+   * 마운트 시 락 자동 리다이렉트.
+   * 같은 사용자가 1회 사용 + 공유 안 누른 상태에서 새 진입(새로고침/재방문)을
+   * 하면 자기가 만든 공유 URL로 보낸다. 이미 그 페이지에 있으면(쿼리에 같은
+   * snapshot id 포함) 리다이렉트하지 않아 루프를 방지.
+   */
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (lockRedirectAttemptedRef.current) return;
+    lockRedirectAttemptedRef.current = true;
+
+    const redirectUrl = readQuotaRedirectUrl();
+    if (!redirectUrl) return;
+
+    try {
+      const target = new URL(redirectUrl, window.location.origin);
+      const targetSnapshot = target.searchParams.get("snapshot");
+      const currentSnapshot = searchParams.get("snapshot");
+      if (targetSnapshot && targetSnapshot === currentSnapshot) return;
+      router.replace(
+        `${target.pathname}${target.search}${target.hash}`,
+        { scroll: false },
+      );
+    } catch {
+      /* URL 파싱 실패 시 무시 */
+    }
+    // 의도적으로 deps에 searchParams를 넣지 않음 — 마운트 시 한 번만 판단.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
@@ -298,6 +347,12 @@ function ResumeWhiskAppInner() {
     [showCopyHint],
   );
 
+  const openLockedDialog = React.useCallback(() => {
+    pendingEditTextRef.current = null;
+    setEditConfirmVariant("locked");
+    setEditConfirmOpen(true);
+  }, []);
+
   const runWhisk = React.useCallback(async () => {
     if (!snapshotHydrated) return;
 
@@ -306,6 +361,12 @@ function ResumeWhiskAppInner() {
       showCopyHint("번역할 내용을 입력해 주세요");
       return;
     }
+
+    if (!readQuotaCanTranslate()) {
+      openLockedDialog();
+      return;
+    }
+    const wasFirstTranslation = !readQuotaTranslatedToday();
 
     let direction: "ko_resume" | "resume_ko" | null = null;
     if (fromKey === LANGUAGE_KO && toKey === LANGUAGE_RESUME) {
@@ -344,6 +405,57 @@ function ResumeWhiskAppInner() {
     ) {
       setTranslateAdMountKey((k) => k + 1);
     }
+    /**
+     * 번역 성공 직후 호출. 첫 무료 번역이면 백그라운드로 스냅샷을 자동
+     * 생성해서 그 URL을 localStorage에 기록 — 사용자가 새로고침해도 그
+     * URL로 자동 리다이렉트되어 공유를 유도할 수 있게 됨.
+     */
+    const noteSuccessfulTranslation = (outputForSnapshot: string) => {
+      if (!firstQuotaHintShownRef.current) {
+        firstQuotaHintShownRef.current = true;
+        showCopyHint(
+          "오늘 무료 1회 사용 · 1번 공유하면 추가 번역 가능 (자정 초기화)",
+        );
+      }
+      if (!wasFirstTranslation) return;
+      void (async () => {
+        try {
+          const copy = pendingWhiskCopyRef.current;
+          const res = await fetch("/api/snapshots", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: fromKey,
+              to: toKey,
+              input: trimmed,
+              output: outputForSnapshot,
+              copy_title: copy?.primary ?? WHISK_TAGLINE_PRIMARY,
+              copy_desc: copy?.secondary ?? WHISK_TAGLINE_SECONDARY,
+            }),
+          });
+          if (!res.ok) return;
+          const data: unknown = await res.json().catch(() => null);
+          if (
+            !data ||
+            typeof data !== "object" ||
+            typeof (data as { id?: unknown }).id !== "string" ||
+            !isUuidV4((data as { id: string }).id)
+          ) {
+            return;
+          }
+          const id = (data as { id: string }).id;
+          const query = `snapshot=${encodeURIComponent(id)}&utm_source=share`;
+          const shareUrl = new URL(
+            `${pathname}?${query}`,
+            window.location.origin,
+          ).href;
+          recordFirstTranslation(shareUrl);
+        } catch {
+          /* 백그라운드 실패는 사일런트 — 락이 활성화되지 않을 뿐 */
+        }
+      })();
+    };
+
     setIsWhisking(true);
     try {
       if (trimmed === TEST_MODE_INPUT) {
@@ -377,6 +489,7 @@ function ResumeWhiskAppInner() {
           text: sampleText,
           seq: whiskTypedSeqRef.current,
         });
+        noteSuccessfulTranslation(sampleText);
         return;
       }
 
@@ -423,6 +536,7 @@ function ResumeWhiskAppInner() {
       setTaglinesVisible(false);
       whiskTypedSeqRef.current += 1;
       setWhiskTypedOutput({ text: d.text, seq: whiskTypedSeqRef.current });
+      noteSuccessfulTranslation(d.text);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       if (taglineRevealTimerRef.current !== null) {
@@ -444,6 +558,8 @@ function ResumeWhiskAppInner() {
     searchParams,
     showCopyHint,
     snapshotHydrated,
+    openLockedDialog,
+    recordFirstTranslation,
   ]);
 
   const handleShareAdDialogOpenChange = React.useCallback((open: boolean) => {
@@ -547,7 +663,10 @@ function ResumeWhiskAppInner() {
       shareFlowSucceeded = true;
     } finally {
       setIsSharing(false);
-      if (!shareFlowSucceeded) {
+      if (shareFlowSucceeded) {
+        // 일일 쿼터 해제: 오늘 한 번이라도 공유하면 락 풀림.
+        markShared();
+      } else {
         setShareAdDialogOpen(false);
       }
     }
@@ -562,6 +681,7 @@ function ResumeWhiskAppInner() {
     taglineSecondary,
     toKey,
     snapshotHydrated,
+    markShared,
   ]);
 
   const resetTranslationForInputEdit = React.useCallback(() => {
@@ -633,14 +753,21 @@ function ResumeWhiskAppInner() {
       if (inputReadOnly) return;
 
       if (inputNeedsEditConfirm && next !== inputText) {
+        // 추가 번역이 잠긴 상태(=오늘 1회 무료 사용, 아직 공유 전)에서는
+        // 원문 수정 자체를 막고 공유 안내 다이얼로그로 유도.
+        if (!readQuotaCanTranslate()) {
+          openLockedDialog();
+          return;
+        }
         pendingEditTextRef.current = next;
+        setEditConfirmVariant("edit");
         setEditConfirmOpen(true);
         return;
       }
 
       setInputText(next);
     },
-    [inputNeedsEditConfirm, inputReadOnly, inputText],
+    [inputNeedsEditConfirm, inputReadOnly, inputText, openLockedDialog],
   );
 
   const handleEditConfirmOpenChange = React.useCallback((open: boolean) => {
@@ -969,6 +1096,7 @@ function ResumeWhiskAppInner() {
       <WhiskEditConfirmDialog
         open={editConfirmOpen}
         onOpenChange={handleEditConfirmOpenChange}
+        variant={editConfirmVariant}
         onConfirm={handleEditConfirmAccept}
       />
     </div>
