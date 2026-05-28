@@ -15,6 +15,7 @@ import { WhiskCopyToast } from "@/components/resume-whisk/whisk-copy-toast";
 import { WhiskLayoutColumn } from "@/components/resume-whisk/whisk-layout-column";
 import { WhiskTranslateAdTopBar } from "@/components/resume-whisk/whisk-translate-ad-top-bar";
 import { WhiskShareAdDialog } from "@/components/resume-whisk/whisk-share-ad-dialog";
+import { WhiskEditConfirmDialog } from "@/components/resume-whisk/whisk-edit-confirm-dialog";
 import {
   COPY_EDIT_TOOLTIP,
   WhiskEditableTagline,
@@ -64,9 +65,6 @@ const TAGLINE_REVEAL_DELAY_MS = 600;
 const COPY_TITLE_MAX = 500;
 const COPY_DESC_MAX = 2_000;
 const COPY_EDIT_HINT_AUTO_DISMISS_MS = 8_000;
-const INPUT_EDIT_RESET_CONFIRM_MESSAGE =
-  "원문을 수정하면 번역 결과가 사라집니다. 그래도 수정하시겠습니까?";
-
 /** 모바일 번역·typed·하단 광고 구간 Sonner 토스트 id */
 const WHISK_TRANSLATE_AD_TOAST_ID = "whisk-translate-ad";
 
@@ -90,6 +88,8 @@ function ResumeWhiskAppInner() {
   >(null);
   const [shareAdMountKey, setShareAdMountKey] = React.useState(0);
   const [translateAdMountKey, setTranslateAdMountKey] = React.useState(0);
+  const [editConfirmOpen, setEditConfirmOpen] = React.useState(false);
+  const pendingEditTextRef = React.useRef<string | null>(null);
   const [whiskTypedOutput, setWhiskTypedOutput] = React.useState<{
     text: string;
     seq: number;
@@ -633,22 +633,31 @@ function ResumeWhiskAppInner() {
       if (inputReadOnly) return;
 
       if (inputNeedsEditConfirm && next !== inputText) {
-        if (window.confirm(INPUT_EDIT_RESET_CONFIRM_MESSAGE)) {
-          resetTranslationForInputEdit();
-          setInputText(next);
-        }
+        pendingEditTextRef.current = next;
+        setEditConfirmOpen(true);
         return;
       }
 
       setInputText(next);
     },
-    [
-      inputNeedsEditConfirm,
-      inputReadOnly,
-      inputText,
-      resetTranslationForInputEdit,
-    ],
+    [inputNeedsEditConfirm, inputReadOnly, inputText],
   );
+
+  const handleEditConfirmOpenChange = React.useCallback((open: boolean) => {
+    setEditConfirmOpen(open);
+    if (!open) {
+      pendingEditTextRef.current = null;
+    }
+  }, []);
+
+  const handleEditConfirmAccept = React.useCallback(() => {
+    const next = pendingEditTextRef.current;
+    pendingEditTextRef.current = null;
+    setEditConfirmOpen(false);
+    if (next === null) return;
+    resetTranslationForInputEdit();
+    setInputText(next);
+  }, [resetTranslationForInputEdit]);
 
   const copyEditable =
     hasOutputToShare &&
@@ -955,6 +964,12 @@ function ResumeWhiskAppInner() {
         mountKey={shareAdMountKey}
         preparedShareUrl={shareDialogPreparedUrl}
         onCopyPreparedUrl={() => void copyPreparedShareUrl()}
+      />
+
+      <WhiskEditConfirmDialog
+        open={editConfirmOpen}
+        onOpenChange={handleEditConfirmOpenChange}
+        onConfirm={handleEditConfirmAccept}
       />
     </div>
   );
