@@ -56,6 +56,7 @@ import {
   readQuotaTranslatedToday,
   useWhiskDailyQuota,
 } from "@/lib/whisk-daily-quota";
+import { whiskAnalytics } from "@/lib/whisk-analytics";
 import { SITE_NAME } from "@/lib/site-seo";
 
 const TEST_MODE_INPUT = "테스트";
@@ -109,6 +110,12 @@ function ResumeWhiskAppInner() {
   const firstQuotaHintShownRef = React.useRef(false);
   /** mount 시 락 판단을 한 번만 하도록 */
   const lockRedirectAttemptedRef = React.useRef(false);
+  /** 스냅샷 진입 이벤트가 한 번만 발화되도록 */
+  const snapshotEntryTrackedRef = React.useRef(false);
+  /** typed.js 출력 완료 시점에 어떤 방향으로 번역했는지 알기 위한 캡처 */
+  const lastTypedDirectionRef = React.useRef<
+    "ko_resume" | "resume_ko" | null
+  >(null);
   const [whiskTypedOutput, setWhiskTypedOutput] = React.useState<{
     text: string;
     seq: number;
@@ -186,6 +193,18 @@ function ResumeWhiskAppInner() {
     if (lockRedirectAttemptedRef.current) return;
     lockRedirectAttemptedRef.current = true;
 
+    // 공유 링크로 들어온 경우(스냅샷 진입) 1회 발화 — utm_source=share 또는
+    // snapshot 쿼리가 있으면 카운트.
+    if (!snapshotEntryTrackedRef.current) {
+      const fromShareLink =
+        searchParams.get("utm_source") === "share" ||
+        searchParams.has("snapshot");
+      if (fromShareLink) {
+        snapshotEntryTrackedRef.current = true;
+        whiskAnalytics.snapshotEntry();
+      }
+    }
+
     const redirectUrl = readQuotaRedirectUrl();
     if (!redirectUrl) return;
 
@@ -194,6 +213,7 @@ function ResumeWhiskAppInner() {
       const targetSnapshot = target.searchParams.get("snapshot");
       const currentSnapshot = searchParams.get("snapshot");
       if (targetSnapshot && targetSnapshot === currentSnapshot) return;
+      whiskAnalytics.quotaRedirect();
       router.replace(
         `${target.pathname}${target.search}${target.hash}`,
         { scroll: false },
@@ -306,6 +326,11 @@ function ResumeWhiskAppInner() {
     setOutputText(final);
     setWhiskTypedOutput(null);
 
+    const typedDir = lastTypedDirectionRef.current;
+    if (typedDir) {
+      whiskAnalytics.translateTypedComplete(typedDir);
+    }
+
     const pending = pendingWhiskCopyRef.current;
     if (!pending) {
       setTaglinesVisible(true);
@@ -334,12 +359,13 @@ function ResumeWhiskAppInner() {
   }, []);
 
   const handleCopy = React.useCallback(
-    async (text: string) => {
+    async (text: string, area: "input" | "output") => {
       if (!text.trim()) {
         showCopyHint("복사할 내용이 없어요");
         return;
       }
       const ok = await copyToClipboard(text);
+      if (ok) whiskAnalytics.copyResult(area);
       showCopyHint(
         ok ? "클립보드에 복사했어요" : "복사할 수 없어요. 권한·보안 연결을 확인해 주세요.",
       );
@@ -369,6 +395,7 @@ function ResumeWhiskAppInner() {
       !readQuotaCanTranslate() &&
       effectiveOutputText.trim().length > 0
     ) {
+      whiskAnalytics.quotaLockShown("translate");
       openLockedDialog();
       return;
     }
@@ -383,6 +410,10 @@ function ResumeWhiskAppInner() {
       showCopyHint("지원하지 않는 방향이에요");
       return;
     }
+    // const로 캡처해 클로저 안에서도 narrow된 타입 유지
+    const activeDirection = direction;
+    whiskAnalytics.translateClick(activeDirection);
+    const translateStartedAt = performance.now();
 
     whiskAbortRef.current?.abort();
     const controller = new AbortController();
@@ -417,6 +448,14 @@ function ResumeWhiskAppInner() {
      * URL로 자동 리다이렉트되어 공유를 유도할 수 있게 됨.
      */
     const noteSuccessfulTranslation = (outputForSnapshot: string) => {
+      whiskAnalytics.translateSuccess(
+        activeDirection,
+        performance.now() - translateStartedAt,
+      );
+      lastTypedDirectionRef.current = activeDirection;
+      if (wasFirstTranslation) {
+        whiskAnalytics.quotaFirstUse();
+      }
       if (!firstQuotaHintShownRef.current) {
         firstQuotaHintShownRef.current = true;
         showCopyHint(
@@ -514,10 +553,15 @@ function ResumeWhiskAppInner() {
           typeof (data as { error: unknown }).error === "string"
             ? (data as { error: string }).error
             : "변환에 실패했어요";
+        whiskAnalytics.translateError(
+          activeDirection,
+          `http_${res.status}`,
+        );
         showCopyHint(msg);
         return;
       }
       if (!data || typeof data !== "object") {
+        whiskAnalytics.translateError(activeDirection, "bad_payload");
         showCopyHint("응답을 이해할 수 없어요");
         return;
       }
@@ -526,6 +570,7 @@ function ResumeWhiskAppInner() {
         copy?: { title?: unknown; desc?: unknown };
       };
       if (typeof d.text !== "string") {
+        whiskAnalytics.translateError(activeDirection, "missing_text");
         showCopyHint("응답을 이해할 수 없어요");
         return;
       }
@@ -551,6 +596,10 @@ function ResumeWhiskAppInner() {
       }
       pendingWhiskCopyRef.current = null;
       setTaglinesVisible(true);
+      whiskAnalytics.translateError(
+        activeDirection,
+        err instanceof Error ? err.name || "exception" : "exception",
+      );
       showCopyHint("변환에 실패했어요");
     } finally {
       setIsWhisking(false);
@@ -593,6 +642,7 @@ function ResumeWhiskAppInner() {
     }
     if (!snapshotHydrated) return;
 
+    whiskAnalytics.shareClick();
     setShareDialogPreparedUrl(null);
     setShareAdMountKey((k) => k + 1);
     setShareAdDialogOpen(true);
@@ -620,6 +670,7 @@ function ResumeWhiskAppInner() {
           typeof (data as { error: unknown }).error === "string"
             ? (data as { error: string }).error
             : "공유 링크를 만들지 못했어요";
+        whiskAnalytics.shareError(`snapshot_http_${res.status}`);
         showCopyHint(msg);
         return;
       }
@@ -629,6 +680,7 @@ function ResumeWhiskAppInner() {
         typeof (data as { id?: unknown }).id !== "string" ||
         !isUuidV4((data as { id: string }).id)
       ) {
+        whiskAnalytics.shareError("snapshot_bad_payload");
         showCopyHint("스냅샷을 저장하지 못했어요");
         return;
       }
@@ -650,11 +702,14 @@ function ResumeWhiskAppInner() {
       if (nav?.share) {
         try {
           await nav.share(shareData);
+          whiskAnalytics.shareSuccess("webshare");
           shareFlowSucceeded = true;
           return;
         } catch (err: unknown) {
           const name = err instanceof Error ? err.name : "";
           if (name === "AbortError") {
+            // 사용자가 share sheet에서 dismiss — share UI까진 닿았음을 별도 기록
+            whiskAnalytics.shareSuccess("webshare_dismiss");
             shareFlowSucceeded = true;
             return;
           }
@@ -662,6 +717,11 @@ function ResumeWhiskAppInner() {
       }
 
       const ok = await copyToClipboard(shareUrl);
+      if (ok) {
+        whiskAnalytics.shareSuccess("clipboard");
+      } else {
+        whiskAnalytics.shareError("clipboard_failed");
+      }
       showCopyHint(
         ok
           ? "Web Share를 쓸 수 없어 링크를 클립보드에 복사했어요"
@@ -717,6 +777,7 @@ function ResumeWhiskAppInner() {
   }, [pathname, router, searchParams]);
 
   const swapPanels = () => {
+    whiskAnalytics.directionSwap(fromKey, toKey);
     whiskAbortRef.current?.abort();
     setIsWhisking(false);
     setWhiskTypedOutput(null);
@@ -767,12 +828,14 @@ function ResumeWhiskAppInner() {
           return;
         }
         if (!readQuotaCanTranslate()) {
+          whiskAnalytics.quotaLockShown("edit");
           openLockedDialog();
           return;
         }
         pendingEditTextRef.current = next;
         setEditConfirmVariant("edit");
         setEditConfirmOpen(true);
+        whiskAnalytics.editConfirmShown();
         return;
       }
 
@@ -799,6 +862,7 @@ function ResumeWhiskAppInner() {
     pendingEditTextRef.current = null;
     setEditConfirmOpen(false);
     if (next === null) return;
+    whiskAnalytics.editConfirmAccept();
     resetTranslationForInputEdit();
     setInputText(next);
   }, [resetTranslationForInputEdit]);
@@ -924,7 +988,7 @@ function ResumeWhiskAppInner() {
                 <WhiskToolbarButton
                   title="복사"
                   disabled={isWhisking || isSharing || snapshotBusy}
-                  onClick={() => void handleCopy(inputText)}
+                  onClick={() => void handleCopy(inputText, "input")}
                 >
                   <Copy className="size-5" strokeWidth={1.5} />
                 </WhiskToolbarButton>
@@ -991,7 +1055,7 @@ function ResumeWhiskAppInner() {
               <WhiskToolbarButton
                 title="복사"
                 disabled={isWhisking || isSharing || snapshotBusy}
-                onClick={() => void handleCopy(effectiveOutputText)}
+                onClick={() => void handleCopy(effectiveOutputText, "output")}
               >
                 <Copy className="size-5" strokeWidth={1.5} />
               </WhiskToolbarButton>
