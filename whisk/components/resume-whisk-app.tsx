@@ -362,7 +362,13 @@ function ResumeWhiskAppInner() {
       return;
     }
 
-    if (!readQuotaCanTranslate()) {
+    // 락 게이트는 "공유할 결과가 실제로 화면에 있는" 경우에만 발동.
+    // 스냅샷 hydration 실패 등으로 결과가 비어 있는데 락만 걸리면 사용자가
+    // 아무것도 못 하게 되므로, 그 케이스에서는 락을 무시하고 새 번역을 허용.
+    if (
+      !readQuotaCanTranslate() &&
+      effectiveOutputText.trim().length > 0
+    ) {
       openLockedDialog();
       return;
     }
@@ -560,6 +566,7 @@ function ResumeWhiskAppInner() {
     snapshotHydrated,
     openLockedDialog,
     recordFirstTranslation,
+    effectiveOutputText,
   ]);
 
   const handleShareAdDialogOpenChange = React.useCallback((open: boolean) => {
@@ -753,8 +760,12 @@ function ResumeWhiskAppInner() {
       if (inputReadOnly) return;
 
       if (inputNeedsEditConfirm && next !== inputText) {
-        // 추가 번역이 잠긴 상태(=오늘 1회 무료 사용, 아직 공유 전)에서는
-        // 원문 수정 자체를 막고 공유 안내 다이얼로그로 유도.
+        // 화면에 실제 보여줄 결과가 없으면(예: 스냅샷 hydration 실패) 락도,
+        // 수정 컨펌도 띄우지 않고 그냥 입력을 적용 — 사용자가 갇히지 않도록.
+        if (!hasOutputToShare) {
+          setInputText(next);
+          return;
+        }
         if (!readQuotaCanTranslate()) {
           openLockedDialog();
           return;
@@ -767,7 +778,13 @@ function ResumeWhiskAppInner() {
 
       setInputText(next);
     },
-    [inputNeedsEditConfirm, inputReadOnly, inputText, openLockedDialog],
+    [
+      inputNeedsEditConfirm,
+      inputReadOnly,
+      inputText,
+      openLockedDialog,
+      hasOutputToShare,
+    ],
   );
 
   const handleEditConfirmOpenChange = React.useCallback((open: boolean) => {
